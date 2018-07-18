@@ -19,6 +19,7 @@
 
 #include <stdio.h>
 #include <conio.h>
+#include <unistd.h>
 
 float GetForceSensorValue(int motor);
 int EmergencyStopHit();
@@ -76,6 +77,9 @@ int main(int argc, char ** argv)
     
         WriteDataToFile(rightForceSensorValue, rightSensorLogFile);
         WriteDataToFile(leftForceSensorValue, leftSensorLogFile);
+
+        // Sleeps for 1 second. That might be too slow. Need to look at other sleep functions in different libraries/how to use them.
+        sleep(1);
     }
 
     if (fclose(rightSensorLogFile) != 0)
