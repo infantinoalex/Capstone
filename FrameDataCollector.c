@@ -148,5 +148,6 @@ void WriteDataToFile(float sensorData, FILE * file)
 
 int EmergencyStopHit()
 {
+    // If a key was pressed at any point, we exit
     return 1;
 }
