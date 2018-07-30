@@ -89,7 +89,7 @@ int main(int argc, char ** argv)
         exit(2);
     }
 
-    if ((pid = fork()) ==)
+    if ((pid = fork()) == 0)
     {
         // Second child which will monitor physical emergency stop
         EmergencyStopHitStrap(parent_id);
@@ -100,11 +100,13 @@ int main(int argc, char ** argv)
     if (rightSensorLogFile == NULL)
     {
         printf("Failed to open log file of name: %s.\nCannot record data.\n", rightSensorFileName);
+        exit(6);
     }
 
     if (leftSensorLogFile == NULL)
     {
         printf("Failed to open log file of name: %s.\nCannot record data.\n", leftSensorFileName);
+        exit(6);
     }
 
     printf("Successfully open log file to record data at: %s\n", rightSensorFileName);
