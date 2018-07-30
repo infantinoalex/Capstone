@@ -42,6 +42,9 @@ void WriteDataToFile(float sensorData, FILE * file);
 FILE * rightSensorLogFile;
 FILE * leftSensorLogFile;
 
+const int RightForceSensor = 0;
+const int LeftForceSensor = 1;
+
 int main(int argc, char ** argv)
 {
     // Initialize log files to record data as a csv file
@@ -82,7 +85,7 @@ int main(int argc, char ** argv)
     pid_t parent_id = getpid();
     pid_t pid;
 
-    if ((pid = fork())== 0)
+    if ((pid = fork()) == 0)
     {
         // First child which will monitor key press
         EmergencyStopHitCode(parent_id);
@@ -111,9 +114,6 @@ int main(int argc, char ** argv)
 
     printf("Successfully open log file to record data at: %s\n", rightSensorFileName);
     printf("Successfully open log file to record data at: %s\n", leftSensorFileName);
-
-    const int RightForceSensor = 0;
-    const int LeftForceSensor = 1;
 
     struct timespec sleepTime;
     sleepTime.tv_sec = 0;
