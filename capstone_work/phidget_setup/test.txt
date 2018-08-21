@@ -1,0 +1,136 @@
+1 Create a channel
+2 Open the channel
+3  Detect when the channel is attached to the pidget
+4  use methods/properties attached to the channel
+5 Close the channel
+
+    Opening a channel
+        Information needed
+
+            Addressing parameters
+                by default will match the first available device channel that is of the correct class
+
+            Hints
+                Serial Number
+                    this is how to sort out device at runtime
+
+
+            Channel Class
+
+                Channel Name
+                    Bridge Input
+
+                API
+                    VoltageRatioInput
+
+                Channel
+                    0 - 3
+
+                API class
+
+                    Class Type
+                        PhidgetVoltageRatioInput
+                            used for measuring the ration between the voltage supplied to and the boltage returned from an attached sensor
+                
+                    Properties
+
+                        int InpoutCount [get]
+                            returns the number of bridges supported
+
+                        double BridgeValue(int index) [get]
+                            returns the value of the selected input in mV/V.
+                            If the input is not enabled, this will throw an exception
+                            If the bridge is saturated, this will be equal to BridgeMax or BridgeMin and an error will be fired
+                                gain should be reduced
+
+                        double BridgeMax(int index) [get]
+                            Retruns the max value a bridge can measure in mV/V.
+                                this will depend on the gain
+
+                        double BridgeMin(int index) [get]
+                            Returns the min value a bridge can measure in mV/V,
+                                this will depend on the gain
+
+                        boolean Enabled(int index) [get, set]
+                            Gets/Sets the enabled state of a Bridge
+                                Thos applies power between +5v and Ground and starts measuring the differential on the +/- pins
+                            By default all Bridges are disabled and need to be explicitly enabled on startup
+
+                        Gains Gain(int index) [get, set]
+                            Gets/Sets the gain for a selected bridge
+                                Supported gains
+                                    1, 8, 16, 32, 64, and 128
+                                Increasing the gains will reduce the measurable voltage difference by the gain factor
+
+                        int DataRate [get, set]
+                            The data rate in ms.
+                            Applies to all 4 bridges simultaneuosly. Setting a slower data rate will reduce noise at the cose of sample time
+                            Each bridge is being sampled only 1/4 of the time
+                            Data rate must be a multple of 8ms
+                                Non multiple of 8 will throw an exception
+
+                        int DataRateMax [get] Constant = 8
+                            max supported data rate in ms
+
+                        int DataRateMin [get] Constant = 1000
+                            min supported data rate in ms
+
+                    Events
+
+                        OnBridgeData(int index, double value) [event]
+                            An event that is issued at the specified DAtaRAte for each enabled bridge
+
+                        On Error(int ErrorCode, string ErrorDescription)
+                            see error description string for specific details
+
+
+                What the website says
+
+                    PhidgetVoltageRatioInput_create( channelHandle )
+                        creates an instance of teh channel
+                        may need to be opened by calling Phidget_open()
+                        MUST be released with PhidgetVoltageRatioInput_delete()
+
+                    PhidgetVoltageRatioInput_setBridgeEnabled( channelHandle, int bridgeEnabled )
+                        also a getBridgeEnabled
+                        enables power to and data from the input
+
+                    so the calls in the section before are correct this is the correct format
+
+                    PhidgetVoltageRatioInput_setBridgeGain( channelHandle, gain )
+                        gain is type PhidgetVoltageRatioInput_BridgeGain
+
+                    PhidgetVoltageRatioInput_setVoltageRatio( channelHandle, ratio )
+                        ratio is type double
+
+                    PhidgetVoltageRatioInput_setVoltageRatioChangeTrigger( channgelHandle, double ratioChange)
+                        Used to specify a value that will trigger a VoltageRatioChange event
+                        setting to 0 will result in the channel firing events off every DataInterval
+
+                    PhidgetVoltageRatioInput_setOnVoltageRatioChangeHandler( channelHandle, handler, ctx )
+                        handler is the OnVoltageRatioChangeCallback
+                        ctx is the user provided context pointer
+
+                    PhidgetVoltageRatioInput_OnVoltageRatioChangedCallback ( channelHandle, *ctx, voltageRatio )
+                        the most recent voltage ratio value the channel has measure will be reported in this event which occurs when the DataInterval has elapsed
+                            If a VoltageRatioChangeTrigger has been set to a non-zero value this will only occur when the voltage has changed by at least the TriggerValue
+
+
+                    Error Events
+                        
+                        OutOfRange
+                            EEPHIDGET_OUTOFRANGE
+
+                        Saturation
+                            EEPHIDGET_SATURATION
+                                most recent input has measured outside the inputs valid range
+
+
+                    Enumerations
+
+                        Phidget return code
+                            A bunch, will look at these while im writing code
+
+                        Bridge Gain is its own enumeration
+
+                            will look more into these
