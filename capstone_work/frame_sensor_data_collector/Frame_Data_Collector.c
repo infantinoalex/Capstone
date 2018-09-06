@@ -3,15 +3,17 @@
 #include <ctype.h>
 #include <phidget22.h>
 #include <time.h>
+#include <sys/time.h>
+#include <semaphore.h>
 
 const int numberOfForceSensors = 4;
-FILE * filePointerse[numberOfForceSensors];
-sem_t frontRightSem = 1;
-sem_t frontLeftSem = 1;
-sem_t backRightSem = 1;
-sem_t backLeftSem = 1;
+FILE * filePointers[4];
+sem_t frontRightSem;
+sem_t frontLeftSem;
+sem_t backRightSem;
+sem_t backLeftSem;
 
-sem_t fileSemaphores[numberOfForceSensors] = { frontRightSem, frontLeftSem, backRightSem, backLeftSem };
+struct timeval tval_start;
 
 static void CCONV onAttachHAndler(PhidgetHandle ph, void *ctx)
 {
@@ -46,7 +48,7 @@ static void CCONV onAttachHAndler(PhidgetHandle ph, void *ctx)
         exit(3);
     }
 
-    prc = Phidget_getDeviceClass(ph, $deviceClass);
+    prc = Phidget_getDeviceClass(ph, &deviceClass);
     if (prc != EPHIDGET_OK)
     {
         DisplayError(prc, "Getting Device Class");
@@ -69,7 +71,7 @@ static void CCONV onAttachHAndler(PhidgetHandle ph, void *ctx)
         printf("\n\tChannel Class: %s\n\tSerial Number: %d\n\tChannel %d\n\t", channelClassName, serialNumber, channel);
     }
 
-    // TODO: Determine what we want the min interval to be
+    /* TODO: Determine what we want the min interval to be */
     printf("\tSetting DataInterval to 1000ms (1 second)");
     prc = PhidgetVoltageInput_setDataInterval((PhidgetVoltageInputHandle) ph, 1000);
     if (prc != EPHIDGET_OK)
@@ -138,7 +140,7 @@ static void CCONV onDetachHandler(PhidgetHandle ph, void *ctx)
         exit(3);
     }
 
-    prc = Phidget_getDeviceClass(ph, $deviceClass);
+    prc = Phidget_getDeviceClass(ph, &deviceClass);
     if (prc != EPHIDGET_OK)
     {
         DisplayError(prc, "Getting Device Class");
@@ -167,51 +169,59 @@ static void CCONV onErrorHandler(PhidgetHandle ph, void *ctx, Phidget_ErrorEvent
     fprintf(stderr, "[Phidget Error Event] -> %s (%d)\n", errorString, errorCode);
 }
 
-void CCONV onFrontRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
-{
-    File * fileToWriteTo = filePointers[0];
-    p(&fileSemaphores[0]);
-    WriteToFile(fileToWriteTo, sensorValue);
-    w(&fileSemaphores[0]);
-}
-
-void CCONV onFrontLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
-{
-    File * fileToWriteTo = filePointers[1];
-    p(&fileSemaphores[1]);
-    WriteToFile(fileToWriteTo, sensorValue);
-    w(&fileSemaphores[1]);
-}
-
-void CCONV onBackRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
-{
-    File * fileToWriteTo = filePointers[2];
-    p(&fileSemaphores[2]);
-    WriteToFile(fileToWriteTo, sensorValue);
-    w(&fileSemaphores[2]);
-}
-
-void CCONV onBackLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
-{
-    File * fileToWriteTo = filePointers[3];
-    p(&fileSemaphores[3]);
-    WriteToFile(fileToWriteTo, sensorValue);
-    w(&fileSemaphores[3]);
-}
-
-void WriteToFile(File * file, double sensorData)
+void WriteToFile(FILE * file, double sensorData)
 {
     time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
+    struct tm * timeinfo = localtime(&t);
 
-    // TODO: Figure out how to get milliseconds
-    // TODO: Figure out how to convert Sensor to Newtons
+    struct timeval currentTime;
+    gettimeofday(&currentTime, NULL);
+    
+    /* Gets usec since it started for a unique number */
+    struct timeval timeDifference;
+    timersub(&currentTime, &tval_start, &timeDifference);
+
+    char test[48];
+    strftime(test, 48, "%H:%M:%S", timeinfo);
+
+    /* TODO: Figure out how to convert Sensor to Newtons */
     char data[128];
-    sprintf(data, "%d:%d:%d,%f\n", tm.tm_hour, tm.tm_min, tm.tm_sec, sensorData);
+    sprintf(data, "%s.%06ld,%f\n", test, (long int)timeDifference.tv_usec, sensorData);
 
     fputs(data, file);
 }
 
+void CCONV onFrontRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
+{
+    FILE * fileToWriteTo = filePointers[0];
+    sem_wait(&frontRightSem);
+    WriteToFile(fileToWriteTo, sensorValue);
+    sem_post(&frontRightSem);
+}
+
+void CCONV onFrontLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
+{
+    FILE * fileToWriteTo = filePointers[1];
+    sem_wait(&frontLeftSem);
+    WriteToFile(fileToWriteTo, sensorValue);
+    sem_post(&frontLeftSem);
+}
+
+void CCONV onBackRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
+{
+    FILE * fileToWriteTo = filePointers[2];
+    sem_wait(&backRightSem);
+    WriteToFile(fileToWriteTo, sensorValue);
+    sem_post(&backRightSem);
+}
+
+void CCONV onBackLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
+{
+    FILE * fileToWriteTo = filePointers[3];
+    sem_wait(&backLeftSem);
+    WriteToFile(fileToWriteTo, sensorValue);
+    sem_post(&backLeftSem);
+}
 
 int main(int argc, char ** argv)
 {
@@ -225,38 +235,45 @@ int main(int argc, char ** argv)
     const int BackRightForceSensor = 2;
     const int BackLeftForceSensor = 3;
 
-    char ** sensorNames = { "Front Right Force Sensor", "Front Left Force Sensor", "Back Right Force Sensor", "Back Left Force Sensor" };
+    char *sensorNames[] = { "Front Right Force Sensor", "Front Left Force Sensor", "Back Right Force Sensor", "Back Left Force Sensor" };
     time_t t = time(NULL);
     struct tm tm = *localtime(&t);
-    char fileNames[numberOfForceSensors][128];
+    char fileNames[4][128];
 
-    // TODO: Initialize Signal Handler?
-    // Is this still neccessary
+    gettimeofday(&tval_start, NULL);
+
+    sem_init(&frontRightSem, 0, 1);
+    sem_init(&frontLeftSem, 0, 1);
+    sem_init(&backRightSem, 0, 1);
+    sem_init(&backLeftSem, 0, 1);
     
-    // Create new channel objects for each channel
+    /* TODO: Initialize Signal Handler?
+       Is this still neccessary */
+    
+    /* Create new channel objects for each channel */
     for (loopCounter = 0; loopCounter < numberOfForceSensors; ++loopCounter)
     {
-        // Open up the file for writing
+        /* Open up the file for writing */
         switch (loopCounter)
         {
             case 0:
-                // Front Right Sensor
-                sprintf(fileNames[loopCounter], "Front_Right_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_day, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                /* Front Right Sensor */
+                sprintf(fileNames[loopCounter], "~/Capstone_Data/Front_Right_Sensor/Front_Right_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
                 break;
 
             case 1:
-                // Front Left Sensor
-                sprintf(fileNames[loopCounter], "Front_Left_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_day, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                /* Front Left Sensor */
+                sprintf(fileNames[loopCounter], "~/Capstone_Data/Front_Left_Sensor/Front_Left_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
                 break;
 
             case 2:
-                // Back Right Sensor
-                sprintf(fileNames[loopCounter], "Back_Right_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_day, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                /* Back Right Sensor */
+                sprintf(fileNames[loopCounter], "~/Capstone_Data/Back_Right_Sensor/Back_Right_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
                 break;
 
             case 3:
-                // Back Left Sensor
-                sprintf(fileNames[loopCounter], "Back_Left_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_day, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                /* Back Left Sensor */
+                sprintf(fileNames[loopCounter], "~/Capstone_Data/Back_Left_Sensor/Back_Left_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
                 break;
         }
 
@@ -267,10 +284,32 @@ int main(int argc, char ** argv)
             exit(7);
         }
 
-        // TODO: Ask user which ID corresponds to the sensorNames[loopCount]
-        // This is so at runtime, user can configure what ID represents what force sensor
+        int channelToUse = -1;
+        printf("Please enter the Channel ID for the %s:\n\tIf you wish to not setup this sensor, enter the value [ -1 ] to skip.\n\nValue: ", sensorNames[loopCounter]);
+        int scanfResult = scanf("%d", &channelToUse);
+        printf("\n\n");
 
-        // Allocate new phidget channel object
+        if (scanfResult == EOF || scanfResult == 0)
+        {
+            fprintf(stderr, "Error reading in value. Terminating program.\n");
+            exit(8);
+        }
+
+        if (channelToUse < 0 || channelToUse > 3)
+        {
+            if (channelToUse == -1)
+            {
+                printf("Not registering channel\n");
+                continue;
+            }
+            else
+            {
+                fprintf(stderr, "Channel must be between 0 - 3 as it is only configued for FOUR sensors.\n\nExiting program.\n");
+                exit(8);
+            }
+        }
+
+        /* Allocate new phidget channel object */
         prc = PhidgetVoltageInput_create(&channelHandlers[loopCounter]);
         if (prc != EPHIDGET_OK)
         {
@@ -278,36 +317,36 @@ int main(int argc, char ** argv)
             exit(2);
         }
 
-        // Open up the channel. Will get the user to enter the correct channel for the name of the sensor
-        prc = Phidget_setDeviceSerialNumber((PhidgetHandle) channelHandlers[loopCounter], /* TODO: Get Serial Number */);
+        /* Open up the channel. Will get the user to enter the correct channel for the name of the sensor */
+        prc = Phidget_setDeviceSerialNumber((PhidgetHandle) channelHandlers[loopCounter], 0/* TODO: Get Serial Number */);
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Setting Device Serial Number");
             exit(2);
         }
 
-        prc = Phidget_setHubPort((PhidgetHandle) channelHandlers[loopCounter], /* TODO: Get Hub Port */);
+        prc = Phidget_setHubPort((PhidgetHandle) channelHandlers[loopCounter], 0/* TODO: Get Hub Port */);
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Setting Hub Port");
             exit(2);
         }
 
-        prc = Phidget_setIsHubPortDevice((PhidgetHandle) channelHandlers[loopCounter], /* TODO: Determine if Is Hub Port */);
+        prc = Phidget_setIsHubPortDevice((PhidgetHandle) channelHandlers[loopCounter], 0/* TODO: Determine if Is Hub Port */);
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Setting Is Hub Port");
             exit(2);
         }
 
-        prc = Phidget_setChannel((PhidgetHandle) channelHandlers[loopCounter], /* TODO: Get Channel Number */);
+        prc = Phidget_setChannel((PhidgetHandle) channelHandlers[loopCounter], channelToUse);
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Setting Channel");
             exit(2);
         }
 
-        // Add the Event Handlers before the device is opened
+        /* Add the Event Handlers before the device is opened */
         printf("\n\nSetting OnAttachHandler...\n");
         prc = Phidget_setOnAttachHandler((PhidgetHandle) channelHandlers[loopCounter], onAttachHandler, NULL);
         if (prc != EPHIDGET_OK)
@@ -332,13 +371,13 @@ int main(int argc, char ** argv)
             exit(2);
         }
 
-        // Each sensor will have a different event handler when the sensor or voltage changes  so that it grabs the correct file pointer to write to
+        /* Each sensor will have a different event handler when the sensor or voltage changes  so that it grabs the correct file pointer to write to */
         switch (loopCounter)
         {
             case 0:
-                // Front Right Force Sensor
-                // Think we only need sensor change handler, not voltage change
-                // TODO: Determine comment above
+                /* Front Right Force Sensor
+                   Think we only need sensor change handler, not voltage change
+                   TODO: Determine comment above */
                 printf("Setting OnVoltageChangeHandler for Front Right Force Sensor\n");
                 prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onFrontRightVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
@@ -349,9 +388,9 @@ int main(int argc, char ** argv)
                 break;
 
             case 1:
-                // Front Left Force Sensor
-                // Think we only need sensor change handler, not voltage change
-                // TODO: Determine comment above
+                /* Front Left Force Sensor
+                   Think we only need sensor change handler, not voltage change
+                   TODO: Determine comment above */
                 printf("Setting OnVoltageChangeHandler for Front Left Force Sensor\n");
                 prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onFrontLeftVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
@@ -362,9 +401,9 @@ int main(int argc, char ** argv)
                 break;
 
             case 2:
-                // Back Right Force Sensor
-                // Think we only need sensor change handler, not voltage change
-                // TODO: Determine comment above
+                /* Back Right Force Sensor
+                   Think we only need sensor change handler, not voltage change
+                   TODO: Determine comment above */
                 printf("Setting OnVoltageChangeHandler for Back Right Force Sensor\n");
                 prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onBackRightVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
@@ -375,9 +414,9 @@ int main(int argc, char ** argv)
                 break;
 
             case 3:
-                // Back Left Force Sensor
-                // Think we only need sensor change handler, not voltage change
-                // TODO: Determine comment above
+                /* Back Left Force Sensor
+                   Think we only need sensor change handler, not voltage change
+                   TODO: Determine comment above */
                 printf("Setting OnVoltageChangeHandler for Back Left Force Sensor\n");
                 prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onBackLeftVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
@@ -386,16 +425,15 @@ int main(int argc, char ** argv)
                     exit(2);
                 }
                 break;
-            }
+        }
 
-            // Open the channel with a timeout
-            printf("Opening and Waiting for Attachment\n");
-            prc = Phidget_openWaitForAttachment((PhidgetHandle) channelHandlers[loopCounter], 5000);
-            if (prc != EPHIDGET_OK)
-            {
-                DisplayError(prc, "Waiting for channel to open");
-                exit(2);
-            }
+        /* Open the channel with a timeout */
+        printf("Opening and Waiting for Attachment\n");
+        prc = Phidget_openWaitForAttachment((PhidgetHandle) channelHandlers[loopCounter], 5000);
+        if (prc != EPHIDGET_OK)
+        {
+            DisplayError(prc, "Waiting for channel to open");
+            exit(2);
         }
     }
 

@@ -1,5 +1,7 @@
-#ifndef PHIDGET_HELPER_H
-#define PHIDGET_HELPER_H
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <phidget22.h>
 
 /*
     Author: Alexander Infantino
@@ -11,17 +13,26 @@
     They have been slightly edited for personal use.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <phidget22.h>
-
 /*
     Displays the error string associated with the PhidgetReturnCode
 
     @param returnCode: The PhidgetReturnCode caused by a function code
     @param message: The message to indicate where the code originated
 */
-void DisplayError(PhidgetReturnCode returnCode, char * message);
 
+void DisplayError(PhidgetReturnCode returnCode, char * message)
+{
+    PhidgetReturnCode prc;
+    const char * error;
 
-#endif
+    fprintf(stderr, "Runtime Error -> %s\n\t", message);
+
+    prc = Phidget_getErrorDescription(returnCode, &error);
+    if (prc != EPHIDGET_OK)
+    {
+        DisplayError(prc, "Getting ErrorDescription");
+        return;
+    }
+
+    fprintf(stderr, "Desc: %s\n", error);
+}
