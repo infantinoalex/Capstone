@@ -277,10 +277,10 @@ int main(int argc, char ** argv)
                 break;
         }
 
-        filePointers[loopCounter] = fopen(fileName, "w");
+        filePointers[loopCounter] = fopen(fileNames[loopCounter], "w");
         if (filePointers[loopCounter] == NULL)
         {
-            fprintf(stderr, "Could not open file with name %s\n", fileName);
+            fprintf(stderr, "Could not open file with name %s\n", fileNames[loopCounter]);
             exit(7);
         }
 
