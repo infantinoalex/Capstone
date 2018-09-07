@@ -1,3 +1,5 @@
+#define _BSD_SOURCE
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -15,7 +17,33 @@ sem_t backLeftSem;
 
 struct timeval tval_start;
 
-static void CCONV onAttachHAndler(PhidgetHandle ph, void *ctx)
+double FrontRightOffset, FrontRightK, FrontLeftOffset, FrontLeftK, BackRightOffset, BackRightK, BackLeftOffset, BackLeftK;
+
+/*
+    Displays the error string associated with the PhidgetReturnCode
+
+    @param returnCode: The PhidgetReturnCode caused by a function code
+    @param message: The message to indicate where the code originated
+*/
+
+void DisplayError(PhidgetReturnCode returnCode, char * message)
+{
+    PhidgetReturnCode prc;
+    const char * error;
+
+    fprintf(stderr, "Runtime Error -> %s\n\t", message);
+
+    prc = Phidget_getErrorDescription(returnCode, &error);
+    if (prc != EPHIDGET_OK)
+    {
+        DisplayError(prc, "Getting ErrorDescription");
+        return;
+    }
+
+    fprintf(stderr, "Desc: %s\n", error);
+}
+
+static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
 {
     PhidgetReturnCode prc;
     Phidget_ChannelSubclass channelSubclass;
@@ -41,13 +69,6 @@ static void CCONV onAttachHAndler(PhidgetHandle ph, void *ctx)
         exit(3);
     }
 
-    prc = Phidget_getChannelClassName(ph, &channelClassName);
-    if (prc != EPHIDGET_OK)
-    {
-        DisplayError(prc, "Getting Channel Class Name");
-        exit(3);
-    }
-
     prc = Phidget_getDeviceClass(ph, &deviceClass);
     if (prc != EPHIDGET_OK)
     {
@@ -64,11 +85,11 @@ static void CCONV onAttachHAndler(PhidgetHandle ph, void *ctx)
             exit(3);
         }
 
-        printf("\n\tChannel Class: %s\n\tSerial Number: %d\n\t Hub Port: %d\n\tChannel %d\n\t", channelClassName, serialNumber, hubPort, channel);
+        printf("\n\ttSerial Number: %d\n\t Hub Port: %d\n\tChannel %d\n\t", serialNumber, hubPort, channel);
     }
     else
     {
-        printf("\n\tChannel Class: %s\n\tSerial Number: %d\n\tChannel %d\n\t", channelClassName, serialNumber, channel);
+        printf("\n\t\n\tSerial Number: %d\n\tChannel %d\n\t", serialNumber, channel);
     }
 
     /* TODO: Determine what we want the min interval to be */
@@ -84,14 +105,14 @@ static void CCONV onAttachHAndler(PhidgetHandle ph, void *ctx)
     prc = PhidgetVoltageInput_setVoltageChangeTrigger((PhidgetVoltageInputHandle) ph, 0.0);
     if (prc != EPHIDGET_OK)
     {
-        DisplayError("Setting Voltage Change Trigger");
+        DisplayError(prc, "Setting Voltage Change Trigger");
         exit(4);
     }
 
     prc = Phidget_getChannelSubclass(ph, &channelSubclass);
     if (prc != EPHIDGET_OK)
     {
-        DisplayError("Getting Channel Subclass");
+        DisplayError(prc, "Getting Channel Subclass");
         exit(5);
     }
 
@@ -133,13 +154,6 @@ static void CCONV onDetachHandler(PhidgetHandle ph, void *ctx)
         exit(3);
     }
 
-    prc = Phidget_getChannelClassName(ph, &channelClassName);
-    if (prc != EPHIDGET_OK)
-    {
-        DisplayError(prc, "Getting Channel Class Name");
-        exit(3);
-    }
-
     prc = Phidget_getDeviceClass(ph, &deviceClass);
     if (prc != EPHIDGET_OK)
     {
@@ -156,11 +170,11 @@ static void CCONV onDetachHandler(PhidgetHandle ph, void *ctx)
             exit(3);
         }
 
-        printf("\n\tChannel Class: %s\n\tSerial Number: %d\n\t Hub Port: %d\n\tChannel %d\n\t", channelClassName, serialNumber, hubPort, channel);
+        printf("\n\tSerial Number: %d\n\t Hub Port: %d\n\tChannel %d\n\t", serialNumber, hubPort, channel);
     }
     else
     {
-        printf("\n\tChannel Class: %s\n\tSerial Number: %d\n\tChannel %d\n\t", channelClassName, serialNumber, channel);
+        printf("\n\tSerial Number: %d\n\tChannel %d\n\t", serialNumber, channel);
     }
 }
 
@@ -169,7 +183,7 @@ static void CCONV onErrorHandler(PhidgetHandle ph, void *ctx, Phidget_ErrorEvent
     fprintf(stderr, "[Phidget Error Event] -> %s (%d)\n", errorString, errorCode);
 }
 
-void WriteToFile(FILE * file, double sensorData)
+void WriteToFile(FILE * file, double measuredForce)
 {
     time_t t = time(NULL);
     struct tm * timeinfo = localtime(&t);
@@ -184,51 +198,56 @@ void WriteToFile(FILE * file, double sensorData)
     char test[48];
     strftime(test, 48, "%H:%M:%S", timeinfo);
 
-    /* TODO: Figure out how to convert Sensor to Newtons */
     char data[128];
-    sprintf(data, "%s.%06ld,%f\n", test, (long int)timeDifference.tv_usec, sensorData);
+    sprintf(data, "%s.%06ld,%f\n", test, (long int)timeDifference.tv_usec, measuredForce);
 
     fputs(data, file);
 }
 
-void CCONV onFrontRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
+void CCONV onFrontRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double voltageRatio)
 {
     FILE * fileToWriteTo = filePointers[0];
     sem_wait(&frontRightSem);
-    WriteToFile(fileToWriteTo, sensorValue);
+    double measuredForce = FrontRightK * (voltageRatio - FrontRightOffset);
+    WriteToFile(fileToWriteTo, measuredForce);
     sem_post(&frontRightSem);
 }
 
-void CCONV onFrontLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
+void CCONV onFrontLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double voltageRatio)
 {
     FILE * fileToWriteTo = filePointers[1];
     sem_wait(&frontLeftSem);
-    WriteToFile(fileToWriteTo, sensorValue);
+    double measuredForce = FrontLeftK * (voltageRatio - FrontLeftOffset);
+    WriteToFile(fileToWriteTo, measuredForce);
     sem_post(&frontLeftSem);
 }
 
-void CCONV onBackRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
+void CCONV onBackRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double voltageRatio)
 {
     FILE * fileToWriteTo = filePointers[2];
     sem_wait(&backRightSem);
-    WriteToFile(fileToWriteTo, sensorValue);
+    double measuredForce = BackRightK * (voltageRatio - BackRightOffset);
+    WriteToFile(fileToWriteTo, measuredForce);
     sem_post(&backRightSem);
 }
 
-void CCONV onBackLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double sensorValue, Phidget_UnitInfo *unitInfo)
+void CCONV onBackLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double voltageRatio)
 {
     FILE * fileToWriteTo = filePointers[3];
     sem_wait(&backLeftSem);
-    WriteToFile(fileToWriteTo, sensorValue);
+    double measuredForce = BackLeftK * (voltageRatio - BackLeftOffset);
+    WriteToFile(fileToWriteTo, measuredForce);
     sem_post(&backLeftSem);
 }
 
 int main(int argc, char ** argv)
 {
-    PhidgetVoltageInputHandle channelHandlers[numberOfForceSensors] = NULL;
+    PhidgetVoltageInputHandle channelHandlers[numberOfForceSensors];
     PhidgetReturnCode prc;
     
     int loopCounter;
+    int channelUsed[4] = { 0, 0, 0, 0 };
+    int scanfResult;
 
     const int FrontRightForceSensor = 0;
     const int FrontLeftForceSensor = 1;
@@ -247,9 +266,6 @@ int main(int argc, char ** argv)
     sem_init(&backRightSem, 0, 1);
     sem_init(&backLeftSem, 0, 1);
     
-    /* TODO: Initialize Signal Handler?
-       Is this still neccessary */
-    
     /* Create new channel objects for each channel */
     for (loopCounter = 0; loopCounter < numberOfForceSensors; ++loopCounter)
     {
@@ -258,35 +274,29 @@ int main(int argc, char ** argv)
         {
             case 0:
                 /* Front Right Sensor */
-                sprintf(fileNames[loopCounter], "~/Capstone_Data/Front_Right_Sensor/Front_Right_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Front_Right_Sensor/Front_Right_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
                 break;
 
             case 1:
                 /* Front Left Sensor */
-                sprintf(fileNames[loopCounter], "~/Capstone_Data/Front_Left_Sensor/Front_Left_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Front_Left_Sensor/Front_Left_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
                 break;
 
             case 2:
                 /* Back Right Sensor */
-                sprintf(fileNames[loopCounter], "~/Capstone_Data/Back_Right_Sensor/Back_Right_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Back_Right_Sensor/Back_Right_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
                 break;
 
             case 3:
                 /* Back Left Sensor */
-                sprintf(fileNames[loopCounter], "~/Capstone_Data/Back_Left_Sensor/Back_Left_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Back_Left_Sensor/Back_Left_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
                 break;
-        }
-
-        filePointers[loopCounter] = fopen(fileNames[loopCounter], "w");
-        if (filePointers[loopCounter] == NULL)
-        {
-            fprintf(stderr, "Could not open file with name %s\n", fileNames[loopCounter]);
-            exit(7);
         }
 
         int channelToUse = -1;
         printf("Please enter the Channel ID for the %s:\n\tIf you wish to not setup this sensor, enter the value [ -1 ] to skip.\n\nValue: ", sensorNames[loopCounter]);
-        int scanfResult = scanf("%d", &channelToUse);
+        scanfResult = scanf("%d", &channelToUse);
+        while ((getchar()) != '\n');
         printf("\n\n");
 
         if (scanfResult == EOF || scanfResult == 0)
@@ -307,6 +317,15 @@ int main(int argc, char ** argv)
                 fprintf(stderr, "Channel must be between 0 - 3 as it is only configued for FOUR sensors.\n\nExiting program.\n");
                 exit(8);
             }
+        }
+        
+        channelUsed[loopCounter] = 1;
+        printf("Opening %d file: %s\n", loopCounter, fileNames[loopCounter]);
+        filePointers[loopCounter] = fopen(fileNames[loopCounter], "w+");
+        if (filePointers[loopCounter] == NULL)
+        {
+            fprintf(stderr, "Could not open file with name %s\n", fileNames[loopCounter]);
+            exit(7);
         }
 
         /* Allocate new phidget channel object */
@@ -375,9 +394,28 @@ int main(int argc, char ** argv)
         switch (loopCounter)
         {
             case 0:
-                /* Front Right Force Sensor
-                   Think we only need sensor change handler, not voltage change
-                   TODO: Determine comment above */
+                printf("Please enter the K value for the Front Right Sensor\n");
+                scanfResult = scanf("%f", &FrontRightK);
+                while ((getchar()) != '\n');
+                printf("\n\n");
+
+                if (scanfResult == EOF || scanfResult == 0)
+                {
+                    fprintf(stderr, "Error reading in value. Terminating program.\n");
+                    exit(8);
+                }
+
+                printf("Please enter the Offset value for the Front Right Sensor\n");
+                scanfResult = scanf("%f", &FrontRightOffset);
+                while ((getchar()) != '\n');
+                printf("\n\n");
+
+                if (scanfResult == EOF || scanfResult == 0)
+                {
+                    fprintf(stderr, "Error reading in value. Terminating program.\n");
+                    exit(8);
+                }
+
                 printf("Setting OnVoltageChangeHandler for Front Right Force Sensor\n");
                 prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onFrontRightVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
@@ -388,9 +426,28 @@ int main(int argc, char ** argv)
                 break;
 
             case 1:
-                /* Front Left Force Sensor
-                   Think we only need sensor change handler, not voltage change
-                   TODO: Determine comment above */
+                printf("Please enter the K value for the Front Left Sensor\n");
+                scanfResult = scanf("%f", &FrontLeftK);
+                while ((getchar()) != '\n');
+                printf("\n\n");
+
+                if (scanfResult == EOF || scanfResult == 0)
+                {
+                    fprintf(stderr, "Error reading in value. Terminating program.\n");
+                    exit(8);
+                }
+
+                printf("Please enter the Offset value for the Front Left Sensor\n");
+                scanfResult = scanf("%f", &FrontLeftOffset);
+                while ((getchar()) != '\n');
+                printf("\n\n");
+
+                if (scanfResult == EOF || scanfResult == 0)
+                {
+                    fprintf(stderr, "Error reading in value. Terminating program.\n");
+                    exit(8);
+                }
+
                 printf("Setting OnVoltageChangeHandler for Front Left Force Sensor\n");
                 prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onFrontLeftVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
@@ -401,9 +458,28 @@ int main(int argc, char ** argv)
                 break;
 
             case 2:
-                /* Back Right Force Sensor
-                   Think we only need sensor change handler, not voltage change
-                   TODO: Determine comment above */
+                printf("Please enter the K value for the Back Right Sensor\n");
+                scanfResult = scanf("%f", &BackRightK);
+                while ((getchar()) != '\n');
+                printf("\n\n");
+
+                if (scanfResult == EOF || scanfResult == 0)
+                {
+                    fprintf(stderr, "Error reading in value. Terminating program.\n");
+                    exit(8);
+                }
+
+                printf("Please enter the Offset value for the Back Right Sensor\n");
+                scanfResult = scanf("%f", &BackRightOffset);
+                while ((getchar()) != '\n');
+                printf("\n\n");
+
+                if (scanfResult == EOF || scanfResult == 0)
+                {
+                    fprintf(stderr, "Error reading in value. Terminating program.\n");
+                    exit(8);
+                }
+
                 printf("Setting OnVoltageChangeHandler for Back Right Force Sensor\n");
                 prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onBackRightVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
@@ -414,9 +490,28 @@ int main(int argc, char ** argv)
                 break;
 
             case 3:
-                /* Back Left Force Sensor
-                   Think we only need sensor change handler, not voltage change
-                   TODO: Determine comment above */
+                printf("Please enter the K value for the Back Left Sensor\n");
+                scanfResult = scanf("%f", &BackLeftK);
+                while ((getchar()) != '\n');
+                printf("\n\n");
+
+                if (scanfResult == EOF || scanfResult == 0)
+                {
+                    fprintf(stderr, "Error reading in value. Terminating program.\n");
+                    exit(8);
+                }
+
+                printf("Please enter the Offset value for the Back Left Sensor\n");
+                scanfResult = scanf("%f", &BackLeftOffset);
+                while ((getchar()) != '\n');
+                printf("\n\n");
+
+                if (scanfResult == EOF || scanfResult == 0)
+                {
+                    fprintf(stderr, "Error reading in value. Terminating program.\n");
+                    exit(8);
+                }
+
                 printf("Setting OnVoltageChangeHandler for Back Left Force Sensor\n");
                 prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onBackLeftVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
@@ -437,41 +532,37 @@ int main(int argc, char ** argv)
         }
     }
 
+    
     printf("All Channels Open and Recording. Waiting until key is pressed for exit\n");
     printf("Press any key to exit...\n");
-    while (1)
+    getchar();
+    printf("Key received. Cleaning up and Exiting\n");
+    for (loopCounter = 0; loopCounter < numberOfForceSensors; ++loopCounter)
     {
-        if (kbhit())
+        if (channelUsed[loopCounter])
         {
-            printf("Key received. Cleaning up and Exiting\n");
-            for (loopCounter = 0; loopCounter < numberOfForceSensors; ++loopCounter)
+            printf("Closing Phidget for %s\n", sensorNames[loopCounter]);
+            prc = Phidget_close((PhidgetHandle) channelHandlers[loopCounter]);
+            if (prc != EPHIDGET_OK)
             {
-                prc = PhidgetVoltageInput_setOnSensorChangeHandler(channelHandlers[loopCounter], NULL, NULL);
-                if (prc != EPHIDGET_OK)
-                {
-                    DisplayError("Clearing on SensorChangeHandlers");
-                }
-
-                prc = Phidget_close((PhidgetHandler) channelHandlers[loopCounter]);
-                if (prc != EPHIDGET_OK)
-                {
-                    DisplayError("Closing channel");
-                }
-
-                prc = PhidgetVoltageInput_delete(&channelHandlers[loopCounter]);
-                if (prc != EPHIDGET_OK)
-                {
-                    DisplayError("Deleting ChannelHandler");
-                }
-
-                if (fclose(filePointers[loopCounter]) != 0)
-                {
-                    printf("Error closing file name %s\n", fileNames[loopCounter]);
-                }
+                DisplayError(prc, "Closing channel");
             }
 
-            printf("Exiting program\n");
-            exit(0);
+            printf("Deleting Phidget for %s\n", sensorNames[loopCounter]);
+            prc = PhidgetVoltageInput_delete(&channelHandlers[loopCounter]);
+            if (prc != EPHIDGET_OK)
+            {
+                DisplayError(prc, "Deleting ChannelHandler");
+            }
+
+            printf("Closing file %s for %s\n", fileNames[loopCounter], sensorNames[loopCounter]);
+            if (fclose(filePointers[loopCounter]) != 0)
+            {
+                printf("Error closing file name %s\n", fileNames[loopCounter]);
+            }
         }
     }
+
+    printf("Exiting program\n");
+    exit(0);
 }
