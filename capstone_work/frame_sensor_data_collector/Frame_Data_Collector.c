@@ -341,21 +341,21 @@ int main(int argc, char ** argv)
         }
 
         /* Open up the channel. Will get the user to enter the correct channel for the name of the sensor */
-        prc = Phidget_setDeviceSerialNumber((PhidgetHandle) channelHandlers[loopCounter], 0/* TODO: Get Serial Number */);
+        prc = Phidget_setDeviceSerialNumber((PhidgetHandle) channelHandlers[loopCounter], 533044);
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Setting Device Serial Number");
             exit(2);
         }
 
-        prc = Phidget_setHubPort((PhidgetHandle) channelHandlers[loopCounter], 0/* TODO: Get Hub Port */);
+        /*prc = Phidget_setHubPort((PhidgetHandle) channelHandlers[loopCounter], 1046);
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Setting Hub Port");
             exit(2);
-        }
+        }*/
 
-        prc = Phidget_setIsHubPortDevice((PhidgetHandle) channelHandlers[loopCounter], 0/* TODO: Determine if Is Hub Port */);
+        prc = Phidget_setIsHubPortDevice((PhidgetHandle) channelHandlers[loopCounter], 0);
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Setting Is Hub Port");
