@@ -43,6 +43,11 @@ void DisplayError(PhidgetReturnCode returnCode, char * message)
     fprintf(stderr, "Desc: %s\n", error);
 }
 
+static void CCONV onErrorHandler(PhidgetHandle ph, void *ctx, Phidget_ErrorEventCode errorCode, const char *errorString)
+{
+    fprintf(stderr, "[Phidget Error Event] -> %s (%d)\n", errorString, errorCode);
+}
+
 static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
 {
     PhidgetReturnCode prc;
@@ -94,7 +99,7 @@ static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
 
     /* TODO: Determine what we want the min interval to be */
     printf("\tSetting DataInterval to 1000ms (1 second)");
-    prc = PhidgetVoltageInput_setDataInterval((PhidgetVoltageInputHandle) ph, 1000);
+    prc = PhidgetVoltageRatioInput_setDataInterval((PhidgetVoltageRatioInputHandle) ph, 1000);
     if (prc != EPHIDGET_OK)
     {
         DisplayError(prc, "Setting DataInterval");
@@ -102,7 +107,7 @@ static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
     }
 
     printf("\tSetting Voltage Change to 0. This will cause a reading to occur every DataInterval\n");
-    prc = PhidgetVoltageInput_setVoltageChangeTrigger((PhidgetVoltageInputHandle) ph, 0.0);
+    prc = PhidgetVoltageRatioInput_setVoltageRatioChangeTrigger((PhidgetVoltageRatioInputHandle) ph, 0.0);
     if (prc != EPHIDGET_OK)
     {
         DisplayError(prc, "Setting Voltage Change Trigger");
@@ -119,12 +124,20 @@ static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
     if (channelSubclass == PHIDCHSUBCLASS_VOLTAGEINPUT_SENSOR_PORT)
     {
         printf("Setting Voltage Sensor Type\n");
-        prc = PhidgetVoltageInput_setSensorType((PhidgetVoltageInputHandle) ph, SENSOR_TYPE_VOLTAGE);
+        prc = PhidgetVoltageRatioInput_setSensorType((PhidgetVoltageRatioInputHandle) ph, SENSOR_TYPE_VOLTAGE);
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Setting Sensor Type");
             exit(6);
         }
+    }
+    
+    printf("\n\nSetting OnErrorHandler...\n");
+    prc = Phidget_setOnErrorHandler((PhidgetHandle) ph, onErrorHandler, NULL);
+    if (prc != EPHIDGET_OK)
+    {
+        DisplayError(prc, "Setting OnErrorHandler");
+        exit(2);
     }
 }
 
@@ -178,11 +191,6 @@ static void CCONV onDetachHandler(PhidgetHandle ph, void *ctx)
     }
 }
 
-static void CCONV onErrorHandler(PhidgetHandle ph, void *ctx, Phidget_ErrorEventCode errorCode, const char *errorString)
-{
-    fprintf(stderr, "[Phidget Error Event] -> %s (%d)\n", errorString, errorCode);
-}
-
 void WriteToFile(FILE * file, double measuredForce)
 {
     time_t t = time(NULL);
@@ -204,7 +212,7 @@ void WriteToFile(FILE * file, double measuredForce)
     fputs(data, file);
 }
 
-void CCONV onFrontRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double voltageRatio)
+void CCONV onFrontRightVoltageChangeHandler(PhidgetVoltageRatioInputHandle ph, void * ctx, double voltageRatio)
 {
     FILE * fileToWriteTo = filePointers[0];
     sem_wait(&frontRightSem);
@@ -214,7 +222,7 @@ void CCONV onFrontRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void *
     sem_post(&frontRightSem);
 }
 
-void CCONV onFrontLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double voltageRatio)
+void CCONV onFrontLeftVoltageChangeHandler(PhidgetVoltageRatioInputHandle ph, void * ctx, double voltageRatio)
 {
     FILE * fileToWriteTo = filePointers[1];
     sem_wait(&frontLeftSem);
@@ -224,7 +232,7 @@ void CCONV onFrontLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * 
     sem_post(&frontLeftSem);
 }
 
-void CCONV onBackRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double voltageRatio)
+void CCONV onBackRightVoltageChangeHandler(PhidgetVoltageRatioInputHandle ph, void * ctx, double voltageRatio)
 {
     FILE * fileToWriteTo = filePointers[2];
     sem_wait(&backRightSem);
@@ -234,7 +242,7 @@ void CCONV onBackRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * 
     sem_post(&backRightSem);
 }
 
-void CCONV onBackLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * ctx, double voltageRatio)
+void CCONV onBackLeftVoltageChangeHandler(PhidgetVoltageRatioInputHandle ph, void * ctx, double voltageRatio)
 {
     FILE * fileToWriteTo = filePointers[3];
     sem_wait(&backLeftSem);
@@ -246,7 +254,7 @@ void CCONV onBackLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * c
 
 int main(int argc, char ** argv)
 {
-    PhidgetVoltageInputHandle channelHandlers[numberOfForceSensors];
+    PhidgetVoltageRatioInputHandle channelHandlers[4];
     PhidgetReturnCode prc;
     
     int loopCounter;
@@ -322,7 +330,9 @@ int main(int argc, char ** argv)
                 exit(8);
             }
         }
-        
+
+        printf("Using channel %d\n", channelToUse);
+
         channelUsed[loopCounter] = 1;
         printf("Opening %d file: %s\n", loopCounter, fileNames[loopCounter]);
         filePointers[loopCounter] = fopen(fileNames[loopCounter], "w+");
@@ -333,7 +343,7 @@ int main(int argc, char ** argv)
         }
 
         /* Allocate new phidget channel object */
-        prc = PhidgetVoltageInput_create(&channelHandlers[loopCounter]);
+        prc = PhidgetVoltageRatioInput_create(&channelHandlers[loopCounter]);
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Creating Channel");
@@ -345,20 +355,6 @@ int main(int argc, char ** argv)
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Setting Device Serial Number");
-            exit(2);
-        }
-
-        /*prc = Phidget_setHubPort((PhidgetHandle) channelHandlers[loopCounter], 1046);
-        if (prc != EPHIDGET_OK)
-        {
-            DisplayError(prc, "Setting Hub Port");
-            exit(2);
-        }*/
-
-        prc = Phidget_setIsHubPortDevice((PhidgetHandle) channelHandlers[loopCounter], 0);
-        if (prc != EPHIDGET_OK)
-        {
-            DisplayError(prc, "Setting Is Hub Port");
             exit(2);
         }
 
@@ -383,14 +379,6 @@ int main(int argc, char ** argv)
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Setting OnDetachHAndler");
-            exit(2);
-        }
-
-        printf("\n\nSetting OnErrorHandler...\n");
-        prc = Phidget_setOnErrorHandler((PhidgetHandle) channelHandlers[loopCounter], onErrorHandler, NULL);
-        if (prc != EPHIDGET_OK)
-        {
-            DisplayError(prc, "Setting OnErrorHandler");
             exit(2);
         }
 
@@ -421,7 +409,7 @@ int main(int argc, char ** argv)
                 }
 
                 printf("Setting OnVoltageChangeHandler for Front Right Force Sensor\n");
-                prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onFrontRightVoltageChangeHandler, NULL);
+                prc = PhidgetVoltageRatioInput_setOnVoltageRatioChangeHandler(channelHandlers[loopCounter], onFrontRightVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
                 {
                     DisplayError(prc, "Setting Front Right Force Sensor OnVoltageChangeHandler");
@@ -453,7 +441,7 @@ int main(int argc, char ** argv)
                 }
 
                 printf("Setting OnVoltageChangeHandler for Front Left Force Sensor\n");
-                prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onFrontLeftVoltageChangeHandler, NULL);
+                prc = PhidgetVoltageRatioInput_setOnVoltageRatioChangeHandler(channelHandlers[loopCounter], onFrontLeftVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
                 {
                     DisplayError(prc, "Setting Front Left Force Sensor OnVoltageChangeHandler");
@@ -485,7 +473,7 @@ int main(int argc, char ** argv)
                 }
 
                 printf("Setting OnVoltageChangeHandler for Back Right Force Sensor\n");
-                prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onBackRightVoltageChangeHandler, NULL);
+                prc = PhidgetVoltageRatioInput_setOnVoltageRatioChangeHandler(channelHandlers[loopCounter], onBackRightVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
                 {
                     DisplayError(prc, "Setting Back Right Force Sensor OnVoltageChangeHandler");
@@ -517,7 +505,7 @@ int main(int argc, char ** argv)
                 }
 
                 printf("Setting OnVoltageChangeHandler for Back Left Force Sensor\n");
-                prc = PhidgetVoltageInput_setOnVoltageChangeHandler(channelHandlers[loopCounter], onBackLeftVoltageChangeHandler, NULL);
+                prc = PhidgetVoltageRatioInput_setOnVoltageRatioChangeHandler(channelHandlers[loopCounter], onBackLeftVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
                 {
                     DisplayError(prc, "Setting Back Left Force Sensor OnVoltageChangeHandler");
@@ -553,7 +541,7 @@ int main(int argc, char ** argv)
             }
 
             printf("Deleting Phidget for %s\n", sensorNames[loopCounter]);
-            prc = PhidgetVoltageInput_delete(&channelHandlers[loopCounter]);
+            prc = PhidgetVoltageRatioInput_delete(&channelHandlers[loopCounter]);
             if (prc != EPHIDGET_OK)
             {
                 DisplayError(prc, "Deleting ChannelHandler");

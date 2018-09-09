@@ -16,13 +16,18 @@ void CCONV AttachHandler(PhidgetManagerHandle manager, void *userptr, PhidgetHan
 
 	int serialNumber;
 	const char *name;
+        int channelNumber;
 
 	LocalErrorCatcher(
 		Phidget_getDeviceName(device, &name));
 	LocalErrorCatcher(
 		Phidget_getDeviceSerialNumber(device, &serialNumber));
+        
+        LocalErrorCatcher(
+                Phidget_getChannel(device, &channelNumber));
 
-	printf("Hello Device %s, Serial Number: %d\n", name, serialNumber);
+
+	printf("Hello Device %s, Serial Number: %d, Channel Number: %d\n", name, serialNumber, channelNumber);
 
 	return;
 }
