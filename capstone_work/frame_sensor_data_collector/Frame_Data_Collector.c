@@ -208,7 +208,8 @@ void CCONV onFrontRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void *
 {
     FILE * fileToWriteTo = filePointers[0];
     sem_wait(&frontRightSem);
-    double measuredForce = FrontRightK * (voltageRatio - FrontRightOffset);
+    /* TODO: Add this back once I figure out what units we want and how to measure it //double measuredForce = FrontRightK * (voltageRatio - FrontRightOffset);*/
+    double measuredForce = voltageRatio;
     WriteToFile(fileToWriteTo, measuredForce);
     sem_post(&frontRightSem);
 }
@@ -217,7 +218,8 @@ void CCONV onFrontLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * 
 {
     FILE * fileToWriteTo = filePointers[1];
     sem_wait(&frontLeftSem);
-    double measuredForce = FrontLeftK * (voltageRatio - FrontLeftOffset);
+    /* TODO: See above //double measuredForce = FrontLeftK * (voltageRatio - FrontLeftOffset);*/
+    double measuredForce = voltageRatio;
     WriteToFile(fileToWriteTo, measuredForce);
     sem_post(&frontLeftSem);
 }
@@ -226,7 +228,8 @@ void CCONV onBackRightVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * 
 {
     FILE * fileToWriteTo = filePointers[2];
     sem_wait(&backRightSem);
-    double measuredForce = BackRightK * (voltageRatio - BackRightOffset);
+    /* TODO: See above //double measuredForce = BackRightK * (voltageRatio - BackRightOffset);*/
+    double measuredForce = voltageRatio;
     WriteToFile(fileToWriteTo, measuredForce);
     sem_post(&backRightSem);
 }
@@ -235,7 +238,8 @@ void CCONV onBackLeftVoltageChangeHandler(PhidgetVoltageInputHandle ph, void * c
 {
     FILE * fileToWriteTo = filePointers[3];
     sem_wait(&backLeftSem);
-    double measuredForce = BackLeftK * (voltageRatio - BackLeftOffset);
+    /* TODO: see above //double measuredForce = BackLeftK * (voltageRatio - BackLeftOffset);*/
+    double measuredForce = voltageRatio;
     WriteToFile(fileToWriteTo, measuredForce);
     sem_post(&backLeftSem);
 }
