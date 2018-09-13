@@ -1,5 +1,8 @@
 #define _BSD_SOURCE
 
+/* TODO: Delete K and Offset from Code
+   TODO: Change datarate to 8ms */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
