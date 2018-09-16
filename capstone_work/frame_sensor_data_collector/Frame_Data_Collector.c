@@ -20,8 +20,6 @@ sem_t backLeftSem;
 
 struct timeval tval_start;
 
-double FrontRightOffset, FrontRightK, FrontLeftOffset, FrontLeftK, BackRightOffset, BackRightK, BackLeftOffset, BackLeftK;
-
 /*
     Displays the error string associated with the PhidgetReturnCode
 
@@ -219,9 +217,7 @@ void CCONV onFrontRightVoltageChangeHandler(PhidgetVoltageRatioInputHandle ph, v
 {
     FILE * fileToWriteTo = filePointers[0];
     sem_wait(&frontRightSem);
-    /* TODO: Add this back once I figure out what units we want and how to measure it //double measuredForce = FrontRightK * (voltageRatio - FrontRightOffset);*/
-    double measuredForce = voltageRatio;
-    WriteToFile(fileToWriteTo, measuredForce);
+    WriteToFile(fileToWriteTo, voltageRatio);
     sem_post(&frontRightSem);
 }
 
@@ -229,9 +225,7 @@ void CCONV onFrontLeftVoltageChangeHandler(PhidgetVoltageRatioInputHandle ph, vo
 {
     FILE * fileToWriteTo = filePointers[1];
     sem_wait(&frontLeftSem);
-    /* TODO: See above //double measuredForce = FrontLeftK * (voltageRatio - FrontLeftOffset);*/
-    double measuredForce = voltageRatio;
-    WriteToFile(fileToWriteTo, measuredForce);
+    WriteToFile(fileToWriteTo, voltageRatio);
     sem_post(&frontLeftSem);
 }
 
@@ -239,9 +233,7 @@ void CCONV onBackRightVoltageChangeHandler(PhidgetVoltageRatioInputHandle ph, vo
 {
     FILE * fileToWriteTo = filePointers[2];
     sem_wait(&backRightSem);
-    /* TODO: See above //double measuredForce = BackRightK * (voltageRatio - BackRightOffset);*/
-    double measuredForce = voltageRatio;
-    WriteToFile(fileToWriteTo, measuredForce);
+    WriteToFile(fileToWriteTo, voltageRatio);
     sem_post(&backRightSem);
 }
 
@@ -249,9 +241,7 @@ void CCONV onBackLeftVoltageChangeHandler(PhidgetVoltageRatioInputHandle ph, voi
 {
     FILE * fileToWriteTo = filePointers[3];
     sem_wait(&backLeftSem);
-    /* TODO: see above //double measuredForce = BackLeftK * (voltageRatio - BackLeftOffset);*/
-    double measuredForce = voltageRatio;
-    WriteToFile(fileToWriteTo, measuredForce);
+    WriteToFile(fileToWriteTo, voltageRatio);
     sem_post(&backLeftSem);
 }
 
@@ -289,22 +279,22 @@ int main(int argc, char ** argv)
         {
             case 0:
                 /* Front Right Sensor */
-                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Front_Right_Sensor/Front_Right_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Front_Right_Sensor/Front_Right_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
                 break;
 
             case 1:
                 /* Front Left Sensor */
-                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Front_Left_Sensor/Front_Left_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Front_Left_Sensor/Front_Left_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
                 break;
 
             case 2:
                 /* Back Right Sensor */
-                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Back_Right_Sensor/Back_Right_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Back_Right_Sensor/Back_Right_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
                 break;
 
             case 3:
                 /* Back Left Sensor */
-                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Back_Left_Sensor/Back_Left_Sensor_%d_%d_%dT_%d_%d_%d.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Back_Left_Sensor/Back_Left_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
                 break;
         }
 
@@ -389,28 +379,6 @@ int main(int argc, char ** argv)
         switch (loopCounter)
         {
             case 0:
-                printf("Please enter the K value for the Front Right Sensor\n");
-                scanfResult = scanf("%f", &FrontRightK);
-                while ((getchar()) != '\n');
-                printf("\n\n");
-
-                if (scanfResult == EOF || scanfResult == 0)
-                {
-                    fprintf(stderr, "Error reading in value. Terminating program.\n");
-                    exit(8);
-                }
-
-                printf("Please enter the Offset value for the Front Right Sensor\n");
-                scanfResult = scanf("%f", &FrontRightOffset);
-                while ((getchar()) != '\n');
-                printf("\n\n");
-
-                if (scanfResult == EOF || scanfResult == 0)
-                {
-                    fprintf(stderr, "Error reading in value. Terminating program.\n");
-                    exit(8);
-                }
-
                 printf("Setting OnVoltageChangeHandler for Front Right Force Sensor\n");
                 prc = PhidgetVoltageRatioInput_setOnVoltageRatioChangeHandler(channelHandlers[loopCounter], onFrontRightVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
@@ -421,28 +389,6 @@ int main(int argc, char ** argv)
                 break;
 
             case 1:
-                printf("Please enter the K value for the Front Left Sensor\n");
-                scanfResult = scanf("%f", &FrontLeftK);
-                while ((getchar()) != '\n');
-                printf("\n\n");
-
-                if (scanfResult == EOF || scanfResult == 0)
-                {
-                    fprintf(stderr, "Error reading in value. Terminating program.\n");
-                    exit(8);
-                }
-
-                printf("Please enter the Offset value for the Front Left Sensor\n");
-                scanfResult = scanf("%f", &FrontLeftOffset);
-                while ((getchar()) != '\n');
-                printf("\n\n");
-
-                if (scanfResult == EOF || scanfResult == 0)
-                {
-                    fprintf(stderr, "Error reading in value. Terminating program.\n");
-                    exit(8);
-                }
-
                 printf("Setting OnVoltageChangeHandler for Front Left Force Sensor\n");
                 prc = PhidgetVoltageRatioInput_setOnVoltageRatioChangeHandler(channelHandlers[loopCounter], onFrontLeftVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
@@ -453,28 +399,6 @@ int main(int argc, char ** argv)
                 break;
 
             case 2:
-                printf("Please enter the K value for the Back Right Sensor\n");
-                scanfResult = scanf("%f", &BackRightK);
-                while ((getchar()) != '\n');
-                printf("\n\n");
-
-                if (scanfResult == EOF || scanfResult == 0)
-                {
-                    fprintf(stderr, "Error reading in value. Terminating program.\n");
-                    exit(8);
-                }
-
-                printf("Please enter the Offset value for the Back Right Sensor\n");
-                scanfResult = scanf("%f", &BackRightOffset);
-                while ((getchar()) != '\n');
-                printf("\n\n");
-
-                if (scanfResult == EOF || scanfResult == 0)
-                {
-                    fprintf(stderr, "Error reading in value. Terminating program.\n");
-                    exit(8);
-                }
-
                 printf("Setting OnVoltageChangeHandler for Back Right Force Sensor\n");
                 prc = PhidgetVoltageRatioInput_setOnVoltageRatioChangeHandler(channelHandlers[loopCounter], onBackRightVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
@@ -485,28 +409,6 @@ int main(int argc, char ** argv)
                 break;
 
             case 3:
-                printf("Please enter the K value for the Back Left Sensor\n");
-                scanfResult = scanf("%f", &BackLeftK);
-                while ((getchar()) != '\n');
-                printf("\n\n");
-
-                if (scanfResult == EOF || scanfResult == 0)
-                {
-                    fprintf(stderr, "Error reading in value. Terminating program.\n");
-                    exit(8);
-                }
-
-                printf("Please enter the Offset value for the Back Left Sensor\n");
-                scanfResult = scanf("%f", &BackLeftOffset);
-                while ((getchar()) != '\n');
-                printf("\n\n");
-
-                if (scanfResult == EOF || scanfResult == 0)
-                {
-                    fprintf(stderr, "Error reading in value. Terminating program.\n");
-                    exit(8);
-                }
-
                 printf("Setting OnVoltageChangeHandler for Back Left Force Sensor\n");
                 prc = PhidgetVoltageRatioInput_setOnVoltageRatioChangeHandler(channelHandlers[loopCounter], onBackLeftVoltageChangeHandler, NULL);
                 if (prc != EPHIDGET_OK)
