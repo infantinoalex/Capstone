@@ -1,8 +1,5 @@
 #define _BSD_SOURCE
 
-/* TODO: Delete K and Offset from Code
-   TODO: Change datarate to 8ms */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -99,8 +96,8 @@ static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
     }
 
     /* TODO: Determine what we want the min interval to be */
-    printf("\tSetting DataInterval to 1000ms (1 second)");
-    prc = PhidgetVoltageRatioInput_setDataInterval((PhidgetVoltageRatioInputHandle) ph, 1000);
+    printf("\tSetting DataInterval to 8ms");
+    prc = PhidgetVoltageRatioInput_setDataInterval((PhidgetVoltageRatioInputHandle) ph, 8);
     if (prc != EPHIDGET_OK)
     {
         DisplayError(prc, "Setting DataInterval");
@@ -279,22 +276,22 @@ int main(int argc, char ** argv)
         {
             case 0:
                 /* Front Right Sensor */
-                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Front_Right_Sensor/Front_Right_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
+                sprintf(fileNames[loopCounter], "./Capstone_Data/Front_Right_Sensor/Front_Right_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
                 break;
 
             case 1:
                 /* Front Left Sensor */
-                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Front_Left_Sensor/Front_Left_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
+                sprintf(fileNames[loopCounter], "./Capstone_Data/Front_Left_Sensor/Front_Left_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
                 break;
 
             case 2:
                 /* Back Right Sensor */
-                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Back_Right_Sensor/Back_Right_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
+                sprintf(fileNames[loopCounter], "./Capstone_Data/Back_Right_Sensor/Back_Right_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
                 break;
 
             case 3:
                 /* Back Left Sensor */
-                sprintf(fileNames[loopCounter], "/home/pi/Capstone_Data/Back_Left_Sensor/Back_Left_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
+                sprintf(fileNames[loopCounter], "./Capstone_Data/Back_Left_Sensor/Back_Left_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
                 break;
         }
 
