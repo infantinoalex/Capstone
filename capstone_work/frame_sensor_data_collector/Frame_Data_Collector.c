@@ -96,8 +96,8 @@ static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
     }
 
     /* TODO: Determine what we want the min interval to be */
-    printf("\tSetting DataInterval to 8ms");
-    prc = PhidgetVoltageRatioInput_setDataInterval((PhidgetVoltageRatioInputHandle) ph, 8);
+    printf("\tSetting DataInterval to 200ms");
+    prc = PhidgetVoltageRatioInput_setDataInterval((PhidgetVoltageRatioInputHandle) ph, 200);
     if (prc != EPHIDGET_OK)
     {
         DisplayError(prc, "Setting DataInterval");
