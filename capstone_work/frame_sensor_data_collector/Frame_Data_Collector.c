@@ -96,8 +96,8 @@ static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
     }
 
     /* TODO: Determine what we want the min interval to be */
-    printf("\tSetting DataInterval to 200ms");
-    prc = PhidgetVoltageRatioInput_setDataInterval((PhidgetVoltageRatioInputHandle) ph, 200);
+    printf("\tSetting DataInterval to 96ms");
+    prc = PhidgetVoltageRatioInput_setDataInterval((PhidgetVoltageRatioInputHandle) ph, 96);
     if (prc != EPHIDGET_OK)
     {
         DisplayError(prc, "Setting DataInterval");
@@ -122,7 +122,7 @@ static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
     if (channelSubclass == PHIDCHSUBCLASS_VOLTAGEINPUT_SENSOR_PORT)
     {
         printf("Setting Voltage Sensor Type\n");
-        prc = PhidgetVoltageRatioInput_setSensorType((PhidgetVoltageRatioInputHandle) ph, SENSOR_TYPE_VOLTAGE);
+        prc = PhidgetVoltageRatioInput_setSensorType((PhidgetVoltageRatioInputHandle) ph, SENSOR_TYPE_VOLTAGERATIO);
         if (prc != EPHIDGET_OK)
         {
             DisplayError(prc, "Setting Sensor Type");
@@ -276,24 +276,26 @@ int main(int argc, char ** argv)
         {
             case 0:
                 /* Front Right Sensor */
-                sprintf(fileNames[loopCounter], "./Capstone_Data/Front_Right_Sensor/Front_Right_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
+                sprintf(fileNames[loopCounter], "./Capstone_Data/Front_Right_Sensor/Front_Right_Sensor_%s.csv", argv[1]);
                 break;
 
             case 1:
                 /* Front Left Sensor */
-                sprintf(fileNames[loopCounter], "./Capstone_Data/Front_Left_Sensor/Front_Left_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
+                sprintf(fileNames[loopCounter], "./Capstone_Data/Front_Left_Sensor/Front_Left_Sensor_%s.csv", argv[1]);
                 break;
 
             case 2:
                 /* Back Right Sensor */
-                sprintf(fileNames[loopCounter], "./Capstone_Data/Back_Right_Sensor/Back_Right_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
+                sprintf(fileNames[loopCounter], "./Capstone_Data/Back_Right_Sensor/Back_Right_Sensor_%s.csv", argv[1]);
                 break;
 
             case 3:
                 /* Back Left Sensor */
-                sprintf(fileNames[loopCounter], "./Capstone_Data/Back_Left_Sensor/Back_Left_Sensor_%d%d%dT_%d_%d_%d_%06ld.csv", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec, (long int) tval_start.tv_usec);
+                sprintf(fileNames[loopCounter], "./Capstone_Data/Back_Left_Sensor/Back_Left_Sensor_%s.csv", argv[1]);
                 break;
         }
+
+        while ((getchar()) != '\n');
 
         int channelToUse = -1;
         printf("Please enter the Channel ID for the %s:\n\tIf you wish to not setup this sensor, enter the value [ -1 ] to skip.\n\nValue: ", sensorNames[loopCounter]);
