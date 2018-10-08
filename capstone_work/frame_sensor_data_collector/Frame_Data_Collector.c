@@ -202,14 +202,15 @@ void WriteToFile(FILE * file, double measuredForce)
     gettimeofday(&currentTime, NULL);
     
     /* Gets usec since it started for a unique number */
-    struct timeval timeDifference;
-    timersub(&currentTime, &tval_start, &timeDifference);
+    /*struct timeval timeDifference;
+    timersub(&currentTime, &tval_start, &timeDifference);*/
 
     char test[48];
     strftime(test, 48, "%H:%M:%S", timeinfo);
 
     char data[128];
-    sprintf(data, "%s.%06ld,%f\n", test, (long int)timeDifference.tv_usec, measuredForce);
+    /*sprintf(data, "%s.%06ld,%f\n", test, (long int)timeDifference.tv_usec, measuredForce);*/
+    sprintf(data, "%s,%f\n", test, measuredForce);
 
     fputs(data, file);
 }
