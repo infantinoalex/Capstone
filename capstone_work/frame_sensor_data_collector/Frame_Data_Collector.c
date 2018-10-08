@@ -200,13 +200,16 @@ void WriteToFile(FILE * file, double measuredForce)
 
     struct timeval currentTime;
     gettimeofday(&currentTime, NULL);
+    local = localtime(&currentTime.tv_sec);
+
+    strftime(test, 48, "%02d:%02d:%02d.%03d\n", local->tm_hour, local->tm_min, local->tm_sec, now.tv_usec / 1000);
     
     /* Gets usec since it started for a unique number */
     /*struct timeval timeDifference;
-    timersub(&currentTime, &tval_start, &timeDifference);*/
+    timersub(&currentTime, &tval_start, &timeDifference);
 
     char test[48];
-    strftime(test, 48, "%H:%M:%S", timeinfo);
+    strftime(test, 48, "%H:%M:%S", timeinfo);*/
 
     char data[128];
     /*sprintf(data, "%s.%06ld,%f\n", test, (long int)timeDifference.tv_usec, measuredForce);*/
