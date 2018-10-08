@@ -39,11 +39,13 @@ void DisplayError(PhidgetReturnCode returnCode, char * message)
     }
 
     fprintf(stderr, "Desc: %s\n", error);
+    exit(10);
 }
 
 static void CCONV onErrorHandler(PhidgetHandle ph, void *ctx, Phidget_ErrorEventCode errorCode, const char *errorString)
 {
     fprintf(stderr, "[Phidget Error Event] -> %s (%d)\n", errorString, errorCode);
+    exit(10);
 }
 
 static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
@@ -187,6 +189,8 @@ static void CCONV onDetachHandler(PhidgetHandle ph, void *ctx)
     {
         printf("\n\tSerial Number: %d\n\tChannel %d\n\t", serialNumber, channel);
     }
+    
+    exit(11);
 }
 
 void WriteToFile(FILE * file, double measuredForce)
