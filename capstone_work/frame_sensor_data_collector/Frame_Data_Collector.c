@@ -212,7 +212,7 @@ void WriteToFile(FILE * file, double measuredForce)
     strftime(test, 48, "%H:%M:%S", timeinfo);*/
 
     char data[128];
-    /*sprintf(data, "%s.%06ld,%f\n", test, (long int)timeDifference.tv_usec, measuredForce);*/
+    /*sprintf(data, "%s.%08ld,%f\n", test, (long int)timeDifference.tv_usec, measuredForce);*/
     sprintf(data, "%s,%f\n", test, measuredForce);
 
     fputs(data, file);
