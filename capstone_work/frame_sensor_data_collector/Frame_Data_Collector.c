@@ -200,20 +200,20 @@ void WriteToFile(FILE * file, double measuredForce)
 
     struct timeval currentTime;
     gettimeofday(&currentTime, NULL);
-    local = localtime(&currentTime.tv_sec);
+    struct tm * local = localtime(&currentTime.tv_sec);
 
-    strftime(test, 48, "%02d:%02d:%02d.%03d\n", local->tm_hour, local->tm_min, local->tm_sec, now.tv_usec / 1000);
+    char test[48];
+    sprintf(test, "%02d:%02d:%02d.%03d", local->tm_hour, local->tm_min, local->tm_sec, currentTime.tv_usec / 1000);
     
     /* Gets usec since it started for a unique number */
     /*struct timeval timeDifference;
     timersub(&currentTime, &tval_start, &timeDifference);
 
-    char test[48];
     strftime(test, 48, "%H:%M:%S", timeinfo);*/
 
     char data[128];
     /*sprintf(data, "%s.%08ld,%f\n", test, (long int)timeDifference.tv_usec, measuredForce);*/
-    sprintf(data, "%s,%f\n", test, measuredForce);
+    sprintf(data, "%s,%.10f\n", test, measuredForce);
 
     fputs(data, file);
 }
@@ -265,16 +265,13 @@ int main(int argc, char ** argv)
     const int BackLeftForceSensor = 3;
 
     char *sensorNames[] = { "Front Right Force Sensor", "Front Left Force Sensor", "Back Right Force Sensor", "Back Left Force Sensor" };
-    time_t t = time(NULL);
-    struct tm tm = *localtime(&t);
-    char fileNames[4][128];
-
-    gettimeofday(&tval_start, NULL);
+    char fileNames[4][256];
 
     sem_init(&frontRightSem, 0, 1);
     sem_init(&frontLeftSem, 0, 1);
     sem_init(&backRightSem, 0, 1);
     sem_init(&backLeftSem, 0, 1);
+
     
     /* Create new channel objects for each channel */
     for (loopCounter = 0; loopCounter < numberOfForceSensors; ++loopCounter)
@@ -302,8 +299,6 @@ int main(int argc, char ** argv)
                 sprintf(fileNames[loopCounter], "./Capstone_Data/Back_Left_Sensor/Back_Left_Sensor_%s.csv", argv[1]);
                 break;
         }
-
-        while ((getchar()) != '\n');
 
         int channelToUse = -1;
         printf("Please enter the Channel ID for the %s:\n\tIf you wish to not setup this sensor, enter the value [ -1 ] to skip.\n\nValue: ", sensorNames[loopCounter]);
