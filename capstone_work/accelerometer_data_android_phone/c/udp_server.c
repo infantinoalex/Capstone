@@ -9,7 +9,7 @@
 #include <arpa/inet.h>
 
 #define BufferSize 1024
-#define PortNumber 5000
+#define PortNumber 50000
 
 int main(int argc, char ** argv)
 {
@@ -18,7 +18,7 @@ int main(int argc, char ** argv)
     
     struct sockaddr_in servaddr, cliaddr;
 
-    if ((sockdf = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+    if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
     {
         perror("Socket creation failed\n");
         exit(EXIT_FAILURE);
@@ -44,12 +44,27 @@ int main(int argc, char ** argv)
         int len, n; 
         n = recvfrom(sockfd, 
                     (char *)buffer,
-                    MAXLINE,  
+                    BufferSize,  
                     MSG_WAITALL,
                     ( struct sockaddr *) &cliaddr, 
-                    &len); 
+                    &len);
+
         buffer[n] = '\0'; 
-        printf("Client : %s\n", buffer); 
+        int i;
+        for (i = 0; i < 92; i += 4)
+        {
+            char data[4];
+            data[0] = buffer[i];
+            data[1] = buffer[i + 1];
+            data[2] = buffer[i + 2];
+            data[3] = buffer[i + 3];
+
+            printf("%1.4f", data);
+            printf("%1.4f,\n\n", atof(data));
+        }
+
+        printf("\nThats all\n");
+
     }
 
     return 0;

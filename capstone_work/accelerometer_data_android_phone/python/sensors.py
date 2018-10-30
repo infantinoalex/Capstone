@@ -2,7 +2,7 @@ import socket
 from struct import *
 
 # Prepare the UDP connection
-UDP_IP = "192.168.42.100"
+UDP_IP = "192.168.42.120"
 print "Receiver IP: ", UDP_IP
 UDP_PORT = 50000
 print "Port: ", UDP_PORT
