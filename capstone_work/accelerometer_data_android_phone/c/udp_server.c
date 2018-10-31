@@ -69,22 +69,30 @@ int main(int argc, char ** argv)
         float accelerationX = ConvertBytesToFloat(buffer, 0);
         float accelerationY = ConvertBytesToFloat(buffer, 4);
         float accelerationZ = ConvertBytesToFloat(buffer, 8);
+        float rotationX = ConvertBytesToFloat(buffer, 24);
+        float rotationY = ConvertBytesToFloat(buffer, 28);
+        float rotationZ = ConvertBytesToFloat(buffer, 32);
         float pitch = ConvertBytesToFloat(buffer, 40);
         float roll = ConvertBytesToFloat(buffer, 44);
 
         printf("Acceleration: X: %f\tY: %f\tZ: %f\n", accelerationX, accelerationY, accelerationZ);
+        printf("Rotation: X: %f\tY: %f\tZ: %f\n", rotationX, rotationY, rotationZ);
         printf("Pitch: %f\nRoll: %f\n", pitch, roll);
 
         float acceleration = sqrtf((accelerationX * accelerationX) + (accelerationY * accelerationY) + (accelerationZ * accelerationZ));
-        float angularVelocity = sqrtf((pitch * pitch) + (roll * roll));
+        float angularVelocity = sqrtf((rotationX * rotationX) + (rotationY * rotationY) + (rotationZ * rotationZ));
+        float pitchAndRollStuff = sqrtf((pitch * pitch) + (roll * roll));
+
+        printf("Acceleration: %f\n", acceleration);
+        printf("Angular Velocity: %f\n\n\n\n\n", angularVelocity);
 
         int shouldSleep = 0;
 
-        if (acceleration < accelerationThreshold)
+        /*if (acceleration < accelerationThreshold)
         {
             if (isAccelerationPastThreshold)
             {
-                printf("Fall detected\n\n");
+                printf("Fall detected due to Acceleration\n\n");
                 exit(0);
             }
             else
@@ -97,13 +105,13 @@ int main(int argc, char ** argv)
         else
         {
             isAccelerationPastThreshold = 0;
-        }
+        }*/
         
         if (angularVelocity > angularVelocityThreshold)
         {
             if (isAngularVelocityPastThreshold)
             {
-                printf("Fall detected\n\n");
+                printf("Fall detected due to Angular Velocity\n\n");
                 exit(0);
             }
             else
@@ -120,7 +128,8 @@ int main(int argc, char ** argv)
 
         if (shouldSleep)
         {
-            /* Sleep here */
+            printf("Sleeping for 255ms to and repolling to determine if a fall is occuring\n");
+            usleep(255 * 1000);
         }
     }
 
