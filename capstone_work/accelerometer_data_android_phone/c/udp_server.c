@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <netdb.h>
@@ -16,6 +17,8 @@ union
     char chars[4];
     float f;
 } floatUnion;
+
+float ConvertBytesToFloat(char * buffer, int offset);
 
 int main(int argc, char ** argv)
 {
@@ -44,6 +47,12 @@ int main(int argc, char ** argv)
         perror("bind failed"); 
         exit(EXIT_FAILURE); 
     } 
+
+    int isAccelerationPastThreshold = 0;
+    int isAngularVelocityPastThreshold = 0;
+
+    const float accelerationThreshold = 4.6;
+    const float angularVelocityThreshold = 3.6;
       
     while (1)
     {
@@ -56,23 +65,74 @@ int main(int argc, char ** argv)
                     &len);
 
         buffer[n] = '\0'; 
-        int i;
-        for (i = 0; i < 92; i += 4)
+
+        float accelerationX = ConvertBytesToFloat(buffer, 0);
+        float accelerationY = ConvertBytesToFloat(buffer, 4);
+        float accelerationZ = ConvertBytesToFloat(buffer, 8);
+        float pitch = ConvertBytesToFloat(buffer, 40);
+        float roll = ConvertBytesToFloat(buffer, 44);
+
+        printf("Acceleration: X: %f\tY: %f\tZ: %f\n", accelerationX, accelerationY, accelerationZ);
+        printf("Pitch: %f\nRoll: %f\n", pitch, roll);
+
+        float acceleration = sqrtf((accelerationX * accelerationX) + (accelerationY * accelerationY) + (accelerationZ * accelerationZ));
+        float angularVelocity = sqrtf((pitch * pitch) + (roll * roll));
+
+        int shouldSleep = 0;
+
+        if (acceleration < accelerationThreshold)
         {
-            char data[4];
-            floatUnion[0] = buffer[i];
-            floatUnion[1] = buffer[i + 1];
-            floatUnion[2] = buffer[i + 2];
-            floatUnion[3] = buffer[i + 3];
-
-            float result = floatUnion.f;
-
-            printf("%f\t", result);
+            if (isAccelerationPastThreshold)
+            {
+                printf("Fall detected\n\n");
+                exit(0);
+            }
+            else
+            {
+                printf("Acceleration past threshold with reading: %f\n", acceleration);
+                isAccelerationPastThreshold = 1;
+                shouldSleep = 1;
+            }
+        }
+        else
+        {
+            isAccelerationPastThreshold = 0;
+        }
+        
+        if (angularVelocity > angularVelocityThreshold)
+        {
+            if (isAngularVelocityPastThreshold)
+            {
+                printf("Fall detected\n\n");
+                exit(0);
+            }
+            else
+            {
+                printf("Angular Velocity past threshold with reading: %f\n", angularVelocity);
+                isAngularVelocityPastThreshold = 1;
+                shouldSleep = 1;
+            }
+        }
+        else
+        {
+            isAngularVelocityPastThreshold = 0;
         }
 
-        printf("\nThats all\n");
-
+        if (shouldSleep)
+        {
+            /* Sleep here */
+        }
     }
 
     return 0;
+}
+
+float ConvertBytesToFloat(char * buffer, int offset)
+{
+    floatUnion.chars[3] = buffer[offset];
+    floatUnion.chars[2] = buffer[offset + 1];
+    floatUnion.chars[1] = buffer[offset + 2];
+    floatUnion.chars[0] = buffer[offset + 3];
+
+    return floatUnion.f;
 }
