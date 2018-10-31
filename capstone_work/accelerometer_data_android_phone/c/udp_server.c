@@ -11,6 +11,12 @@
 #define BufferSize 1024
 #define PortNumber 50000
 
+union
+{
+    char chars[4];
+    float f;
+} floatUnion;
+
 int main(int argc, char ** argv)
 {
     int sockfd;
@@ -54,13 +60,14 @@ int main(int argc, char ** argv)
         for (i = 0; i < 92; i += 4)
         {
             char data[4];
-            data[0] = buffer[i];
-            data[1] = buffer[i + 1];
-            data[2] = buffer[i + 2];
-            data[3] = buffer[i + 3];
+            floatUnion[0] = buffer[i];
+            floatUnion[1] = buffer[i + 1];
+            floatUnion[2] = buffer[i + 2];
+            floatUnion[3] = buffer[i + 3];
 
-            printf("%1.4f", data);
-            printf("%1.4f,\n\n", atof(data));
+            float result = floatUnion.f;
+
+            printf("%f\t", result);
         }
 
         printf("\nThats all\n");
