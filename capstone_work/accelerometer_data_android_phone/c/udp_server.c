@@ -19,12 +19,35 @@ union
 } floatUnion;
 
 float ConvertBytesToFloat(char * buffer, int offset);
+void WriteDataToFile(float accelerationX, float accelerationY, float accelerationZ, float acceleration, float rotationX, float rotationY, float rotationZ, float angularVelocity);
 
 int main(int argc, char ** argv)
 {
     int sockfd;
     char buffer[BufferSize];
+
+    time_t t = time(NULL);
+    struct tm * timeinfo = localtime(&t);
+
+    FILE * fileToWriteTo;
+
+    if (argv != 2)
+    {
+        printf("./udp_server [Name of File]\n");
+    }
+
+    char fileName[256];
+    sprintf(fileName, "./DataCollection/%s.csv", argv[1]);
+
+    fileToWriteTo = fopen(fileName, "w+");
+    if (fileToWriteTo == NULL)
+    {
+        fprintf(stderr, "Could not open file with name %s\n", fileName);
+        exit(2);
+    }
     
+    fprintf(fileToWriteTo, "accelerationX,accelerationY,accelerationZ,acceleration,rotationX,rotationY,rotationZ,angularVelocity\n");
+
     struct sockaddr_in servaddr, cliaddr;
 
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
@@ -88,12 +111,21 @@ int main(int argc, char ** argv)
 
         int shouldSleep = 0;
 
-        /*if (acceleration < accelerationThreshold)
+        struct timeval currentTime;
+        gettimeofday(&currentTime, NULL);
+        struct tm * local = localtime(&currentTime.tv_sec);
+
+        char time[48];
+        sprintf(time, "%02d:%02d:%02d.%03d", local->tm_hour, local->tm_min, local->tm_sec, currentTime.tv_usec / 1000);
+
+        fprintf(fileToWriteTo, "%f,%f,%f,%f,%f,%f,%f,%f\n", accelerationX, accelerationY, accelerationZ, acceleration, rotationX, rotationY, rotationZ, angularVelocity);
+
+        if (acceleration < accelerationThreshold)
         {
             if (isAccelerationPastThreshold)
             {
                 printf("Fall detected due to Acceleration\n\n");
-                exit(0);
+                usleep(500 * 1000);
             }
             else
             {
@@ -105,14 +137,14 @@ int main(int argc, char ** argv)
         else
         {
             isAccelerationPastThreshold = 0;
-        }*/
+        }
         
         if (angularVelocity > angularVelocityThreshold)
         {
             if (isAngularVelocityPastThreshold)
             {
                 printf("Fall detected due to Angular Velocity\n\n");
-                exit(0);
+                usleep(500 * 1000);
             }
             else
             {
@@ -131,6 +163,11 @@ int main(int argc, char ** argv)
             printf("Sleeping for 255ms to and repolling to determine if a fall is occuring\n");
             usleep(255 * 1000);
         }
+    }
+
+    if (fclose(fileToWriteTo) != 0)
+    {
+        perror("Could not close file %s properly\n", fileName);
     }
 
     return 0;
