@@ -46,7 +46,7 @@ int main(int argc, char ** argv)
         exit(2);
     }
     
-    fprintf(fileToWriteTo, "accelerationX,accelerationY,accelerationZ,acceleration,rotationX,rotationY,rotationZ,angularVelocity\n");
+    fprintf(fileToWriteTo, "timestamp,accelerationX,accelerationY,accelerationZ,acceleration,rotationX,rotationY,rotationZ,angularVelocity\n");
 
     struct sockaddr_in servaddr, cliaddr;
 
@@ -76,6 +76,9 @@ int main(int argc, char ** argv)
 
     const float accelerationThreshold = 4.6;
     const float angularVelocityThreshold = 3.6;
+
+    float lastTenReadings[8][10] = 0;
+    char lastTimeTimestamps[10][256];
       
     while (1)
     {
@@ -104,10 +107,33 @@ int main(int argc, char ** argv)
 
         float acceleration = sqrtf((accelerationX * accelerationX) + (accelerationY * accelerationY) + (accelerationZ * accelerationZ));
         float angularVelocity = sqrtf((rotationX * rotationX) + (rotationY * rotationY) + (rotationZ * rotationZ));
-        float pitchAndRollStuff = sqrtf((pitch * pitch) + (roll * roll));
 
         printf("Acceleration: %f\n", acceleration);
         printf("Angular Velocity: %f\n\n\n\n\n", angularVelocity);
+
+        int loopCounter;
+        for (loopCounter = 9; loopCounter > 0; loopCounter--)
+        {
+            lastTenReadings[0][loopCounter] = lastTenReadings[0][loopCounter - 1];
+            lastTenReadings[1][loopCounter] = lastTenReadings[1][loopCounter - 1];
+            lastTenReadings[2][loopCounter] = lastTenReadings[2][loopCounter - 1];
+            lastTenReadings[3][loopCounter] = lastTenReadings[3][loopCounter - 1];
+            lastTenReadings[4][loopCounter] = lastTenReadings[4][loopCounter - 1];
+            lastTenReadings[5][loopCounter] = lastTenReadings[5][loopCounter - 1];
+            lastTenReadings[6][loopCounter] = lastTenReadings[6][loopCounter - 1];
+            lastTenReadings[7][loopCounter] = lastTenReadings[7][loopCounter - 1];
+
+            lastTimeTimestamps[loopCounter] = lastTimeTimestamps[loopCounter - 1];
+        }
+
+        lastTenReadings[0][0] = accelerationX;
+        lastTenReadings[1][0] = accelerationY;
+        lastTenReadings[2][0] = accelerationZ;
+        lastTenReadings[3][0] = acceleration;
+        lastTenReadings[4][0] = rotationX;
+        lastTenReadings[5][0] = rotationY;
+        lastTenReadings[6][0] = rotationZ;
+        lastTenReadings[7][0] = angularVelocity;
 
         int shouldSleep = 0;
 
@@ -117,14 +143,30 @@ int main(int argc, char ** argv)
 
         char time[48];
         sprintf(time, "%02d:%02d:%02d.%03d", local->tm_hour, local->tm_min, local->tm_sec, currentTime.tv_usec / 1000);
-
-        fprintf(fileToWriteTo, "%f,%f,%f,%f,%f,%f,%f,%f\n", accelerationX, accelerationY, accelerationZ, acceleration, rotationX, rotationY, rotationZ, angularVelocity);
+        lastTimeTimestamps[0] = time;
 
         if (acceleration < accelerationThreshold)
         {
             if (isAccelerationPastThreshold)
             {
                 printf("Fall detected due to Acceleration\n\n");
+                
+                for (loopCounter = 0; loopCounter < 10; loopCounter++)
+                {
+                    fprintf(
+                        fileToWriteTo,
+                        "%s,%f,%f,%f,%f,%f,%f,%f,%f\n",
+                        lastTimeTimestamps[loopCounter],
+                        lastTenReadings[0][loopCounter],
+                        lastTenReadings[1][loopCounter],
+                        lastTenReadings[2][loopCounter],
+                        lastTenReadings[3][loopCounter],
+                        lastTenReadings[4][loopCounter],
+                        lastTenReadings[5][loopCounter],
+                        lastTenReadings[6][loopCounter],
+                        lastTenReadings[7][loopCounter]);                 
+                }
+
                 usleep(500 * 1000);
             }
             else
@@ -144,7 +186,22 @@ int main(int argc, char ** argv)
             if (isAngularVelocityPastThreshold)
             {
                 printf("Fall detected due to Angular Velocity\n\n");
-                usleep(500 * 1000);
+
+                for (loopCounter = 0; loopCounter < 10; loopCounter++)
+                {
+                    fprintf(
+                        fileToWriteTo,
+                        "%s,%f,%f,%f,%f,%f,%f,%f,%f\n",
+                        lastTimeTimestamps[loopCounter],
+                        lastTenReadings[0][loopCounter],
+                        lastTenReadings[1][loopCounter],
+                        lastTenReadings[2][loopCounter],
+                        lastTenReadings[3][loopCounter],
+                        lastTenReadings[4][loopCounter],
+                        lastTenReadings[5][loopCounter],
+                        lastTenReadings[6][loopCounter],
+                        lastTenReadings[7][loopCounter]);                 
+                }                usleep(500 * 1000);
             }
             else
             {
