@@ -168,6 +168,13 @@ int main(int argc, char ** argv)
                 }
 
                 usleep(500 * 1000);
+                
+                if (fclose(fileToWriteTo) != 0)
+                {
+                    perror("Could not close file %s properly\n", fileName);
+                }
+
+                exit(1);
             }
             else
             {
@@ -201,7 +208,16 @@ int main(int argc, char ** argv)
                         lastTenReadings[5][loopCounter],
                         lastTenReadings[6][loopCounter],
                         lastTenReadings[7][loopCounter]);                 
-                }                usleep(500 * 1000);
+                }                
+                
+                usleep(500 * 1000);
+
+                if (fclose(fileToWriteTo) != 0)
+                {
+                    perror("Could not close file %s properly\n", fileName);
+                }
+
+                exit(1);
             }
             else
             {
