@@ -4,6 +4,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <netdb.h>
+#include <time.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -19,7 +21,7 @@ union
 } floatUnion;
 
 float ConvertBytesToFloat(char * buffer, int offset);
-void WriteDataToFile(float accelerationX, float accelerationY, float accelerationZ, float acceleration, float rotationX, float rotationY, float rotationZ, float angularVelocity);
+float ConvertStringToFloat(char * buffer);
 
 int main(int argc, char ** argv)
 {
@@ -28,25 +30,6 @@ int main(int argc, char ** argv)
 
     time_t t = time(NULL);
     struct tm * timeinfo = localtime(&t);
-
-    FILE * fileToWriteTo;
-
-    if (argv != 2)
-    {
-        printf("./udp_server [Name of File]\n");
-    }
-
-    char fileName[256];
-    sprintf(fileName, "./DataCollection/%s.csv", argv[1]);
-
-    fileToWriteTo = fopen(fileName, "w+");
-    if (fileToWriteTo == NULL)
-    {
-        fprintf(stderr, "Could not open file with name %s\n", fileName);
-        exit(2);
-    }
-    
-    fprintf(fileToWriteTo, "timestamp,accelerationX,accelerationY,accelerationZ,acceleration,rotationX,rotationY,rotationZ,angularVelocity\n");
 
     struct sockaddr_in servaddr, cliaddr;
 
@@ -77,9 +60,8 @@ int main(int argc, char ** argv)
     const float accelerationThreshold = 4.6;
     const float angularVelocityThreshold = 3.6;
 
-    float lastTenReadings[8][10] = 0;
-    char lastTimeTimestamps[10][256];
-      
+    int shouldSleep = 0;
+
     while (1)
     {
         int len, n; 
@@ -92,155 +74,63 @@ int main(int argc, char ** argv)
 
         buffer[n] = '\0'; 
 
-        float accelerationX = ConvertBytesToFloat(buffer, 0);
-        float accelerationY = ConvertBytesToFloat(buffer, 4);
-        float accelerationZ = ConvertBytesToFloat(buffer, 8);
-        float rotationX = ConvertBytesToFloat(buffer, 24);
-        float rotationY = ConvertBytesToFloat(buffer, 28);
-        float rotationZ = ConvertBytesToFloat(buffer, 32);
-        float pitch = ConvertBytesToFloat(buffer, 40);
-        float roll = ConvertBytesToFloat(buffer, 44);
-
-        printf("Acceleration: X: %f\tY: %f\tZ: %f\n", accelerationX, accelerationY, accelerationZ);
-        printf("Rotation: X: %f\tY: %f\tZ: %f\n", rotationX, rotationY, rotationZ);
-        printf("Pitch: %f\nRoll: %f\n", pitch, roll);
-
-        float acceleration = sqrtf((accelerationX * accelerationX) + (accelerationY * accelerationY) + (accelerationZ * accelerationZ));
-        float angularVelocity = sqrtf((rotationX * rotationX) + (rotationY * rotationY) + (rotationZ * rotationZ));
-
-        printf("Acceleration: %f\n", acceleration);
-        printf("Angular Velocity: %f\n\n\n\n\n", angularVelocity);
-
-        int loopCounter;
-        for (loopCounter = 9; loopCounter > 0; loopCounter--)
+        if (buffer[0] == 'V')
         {
-            lastTenReadings[0][loopCounter] = lastTenReadings[0][loopCounter - 1];
-            lastTenReadings[1][loopCounter] = lastTenReadings[1][loopCounter - 1];
-            lastTenReadings[2][loopCounter] = lastTenReadings[2][loopCounter - 1];
-            lastTenReadings[3][loopCounter] = lastTenReadings[3][loopCounter - 1];
-            lastTenReadings[4][loopCounter] = lastTenReadings[4][loopCounter - 1];
-            lastTenReadings[5][loopCounter] = lastTenReadings[5][loopCounter - 1];
-            lastTenReadings[6][loopCounter] = lastTenReadings[6][loopCounter - 1];
-            lastTenReadings[7][loopCounter] = lastTenReadings[7][loopCounter - 1];
+            float measuredAngularVelocity = ConvertStringToFloat(buffer);
 
-            lastTimeTimestamps[loopCounter] = lastTimeTimestamps[loopCounter - 1];
-        }
-
-        lastTenReadings[0][0] = accelerationX;
-        lastTenReadings[1][0] = accelerationY;
-        lastTenReadings[2][0] = accelerationZ;
-        lastTenReadings[3][0] = acceleration;
-        lastTenReadings[4][0] = rotationX;
-        lastTenReadings[5][0] = rotationY;
-        lastTenReadings[6][0] = rotationZ;
-        lastTenReadings[7][0] = angularVelocity;
-
-        int shouldSleep = 0;
-
-        struct timeval currentTime;
-        gettimeofday(&currentTime, NULL);
-        struct tm * local = localtime(&currentTime.tv_sec);
-
-        char time[48];
-        sprintf(time, "%02d:%02d:%02d.%03d", local->tm_hour, local->tm_min, local->tm_sec, currentTime.tv_usec / 1000);
-        lastTimeTimestamps[0] = time;
-
-        if (acceleration < accelerationThreshold)
-        {
-            if (isAccelerationPastThreshold)
+            if (measuredAngularVelocity > angularVelocityThreshold)
             {
-                printf("Fall detected due to Acceleration\n\n");
-                
-                for (loopCounter = 0; loopCounter < 10; loopCounter++)
+                if (isAngularVelocityPastThreshold)
                 {
-                    fprintf(
-                        fileToWriteTo,
-                        "%s,%f,%f,%f,%f,%f,%f,%f,%f\n",
-                        lastTimeTimestamps[loopCounter],
-                        lastTenReadings[0][loopCounter],
-                        lastTenReadings[1][loopCounter],
-                        lastTenReadings[2][loopCounter],
-                        lastTenReadings[3][loopCounter],
-                        lastTenReadings[4][loopCounter],
-                        lastTenReadings[5][loopCounter],
-                        lastTenReadings[6][loopCounter],
-                        lastTenReadings[7][loopCounter]);                 
+                    printf("Fall detected due to Angular Velocity\n\n");
+                    usleep(500 * 1000);
                 }
-
-                usleep(500 * 1000);
-                
-                if (fclose(fileToWriteTo) != 0)
+                else
                 {
-                    perror("Could not close file %s properly\n", fileName);
+                    printf("Angular Velocity past threshold with reading: %f\n", measuredAngularVelocity);
+                    isAngularVelocityPastThreshold = 1;
+                    shouldSleep = 1;
                 }
-
-                exit(1);
             }
             else
             {
-                printf("Acceleration past threshold with reading: %f\n", acceleration);
-                isAccelerationPastThreshold = 1;
-                shouldSleep = 1;
+                isAngularVelocityPastThreshold = 0;
             }
         }
-        else
+        else if (buffer[0] == 'A')
         {
-            isAccelerationPastThreshold = 0;
-        }
-        
-        if (angularVelocity > angularVelocityThreshold)
-        {
-            if (isAngularVelocityPastThreshold)
+            float measuredAcceleration = ConvertStringToFloat(buffer);
+
+            if (measuredAcceleration < accelerationThreshold)
             {
-                printf("Fall detected due to Angular Velocity\n\n");
-
-                for (loopCounter = 0; loopCounter < 10; loopCounter++)
+                if (isAccelerationPastThreshold)
                 {
-                    fprintf(
-                        fileToWriteTo,
-                        "%s,%f,%f,%f,%f,%f,%f,%f,%f\n",
-                        lastTimeTimestamps[loopCounter],
-                        lastTenReadings[0][loopCounter],
-                        lastTenReadings[1][loopCounter],
-                        lastTenReadings[2][loopCounter],
-                        lastTenReadings[3][loopCounter],
-                        lastTenReadings[4][loopCounter],
-                        lastTenReadings[5][loopCounter],
-                        lastTenReadings[6][loopCounter],
-                        lastTenReadings[7][loopCounter]);                 
-                }                
-                
-                usleep(500 * 1000);
-
-                if (fclose(fileToWriteTo) != 0)
-                {
-                    perror("Could not close file %s properly\n", fileName);
+                    printf("Fall detected due to Acceleration\n\n");
+                    usleep(500 * 1000);
                 }
-
-                exit(1);
+                else
+                {
+                    printf("Acceleration past threshold with reading: %f", measuredAcceleration);
+                    isAccelerationPastThreshold = 1;
+                    shouldSleep = 1;
+                }
             }
             else
             {
-                printf("Angular Velocity past threshold with reading: %f\n", angularVelocity);
-                isAngularVelocityPastThreshold = 1;
-                shouldSleep = 1;
+                isAccelerationPastThreshold = 0;
             }
         }
-        else
+
+        if (!isAccelerationPastThreshold && !isAngularVelocityPastThreshold)
         {
-            isAngularVelocityPastThreshold = 0;
+            shouldSleep = 0;
         }
 
         if (shouldSleep)
         {
-            printf("Sleeping for 255ms to and repolling to determine if a fall is occuring\n");
+            printf("Sleeping for 255ms and repolling to determine if fall is occurring\n");
             usleep(255 * 1000);
         }
-    }
-
-    if (fclose(fileToWriteTo) != 0)
-    {
-        perror("Could not close file %s properly\n", fileName);
     }
 
     return 0;
@@ -254,4 +144,20 @@ float ConvertBytesToFloat(char * buffer, int offset)
     floatUnion.chars[0] = buffer[offset + 3];
 
     return floatUnion.f;
+}
+
+float ConvertStringToFloat(char * buffer)
+{
+    char result[32];
+
+    char currentItem = buffer[2];
+    int loopCounter = 0;
+    while (currentItem != '\0')
+    {
+        result[loopCounter] = currentItem;
+        ++loopCounter;
+        currentItem = buffer[loopCounter + 2];
+    }
+
+    return atof(result);
 }
