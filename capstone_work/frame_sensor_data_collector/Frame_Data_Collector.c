@@ -42,12 +42,19 @@ void DisplayError(PhidgetReturnCode returnCode, char * message)
     exit(10);
 }
 
+/*
+    Handles an error the phidget creates
+*/
+
 static void CCONV onErrorHandler(PhidgetHandle ph, void *ctx, Phidget_ErrorEventCode errorCode, const char *errorString)
 {
     fprintf(stderr, "[Phidget Error Event] -> %s (%d)\n", errorString, errorCode);
     exit(10);
 }
 
+/*
+    Fired off when the phidget sensor is connected properly
+*/
 static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
 {
     PhidgetReturnCode prc;
@@ -141,6 +148,9 @@ static void CCONV onAttachHandler(PhidgetHandle ph, void *ctx)
     }
 }
 
+/*
+    Fired off when the phidget disconnects
+*/
 static void CCONV onDetachHandler(PhidgetHandle ph, void *ctx)
 {
     PhidgetReturnCode prc;
@@ -193,6 +203,9 @@ static void CCONV onDetachHandler(PhidgetHandle ph, void *ctx)
     exit(11);
 }
 
+/*
+    Writes the given force to the given file
+*/
 void WriteToFile(FILE * file, double measuredForce)
 {
     time_t t = time(NULL);
@@ -250,6 +263,12 @@ void CCONV onBackLeftVoltageChangeHandler(PhidgetVoltageRatioInputHandle ph, voi
     sem_post(&backLeftSem);
 }
 
+/*
+    Expected Arguments: executable [name of the sensor]
+    
+    Provide the port of the sensor during runtime when prompted
+    -1 value for the port will ignore that sensor
+*/
 int main(int argc, char ** argv)
 {
     PhidgetVoltageRatioInputHandle channelHandlers[4];
